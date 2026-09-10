@@ -60,12 +60,15 @@ export function createLab(canvas, onReady) {
   box([4.05, .045, 2.8], [-1.38, .435, .22], material(0x0b171b, { roughness: .75 }));
   for (const z of [-1.15, 1.59]) box([4.05, .015, .017], [-1.38, .46, z], glow(0x477966, .6));
   const padText = label('F–001   /   NEURAL INTERFACE', 1.72, .15, [-1.52, .47, 1.42], group, '#608f7b', null, 30); padText.rotation.x = -Math.PI / 2;
-  rod([-2.55, .45, -1.03], [-2.55, 2.4, -1.03], .042, metal);
-  rod([-2.55, 2.4, -1.03], [-.65, 2.4, -1.03], .042, metal);
-  box([.4, .08, .38], [-2.55, .51, -1.03], dark);
-  box([.04, .68, .06], [-.74, 2.15, -1.03], metal);
-  wire([[-2.55, 2.4, -1.03], [-2.7, 2.9, -.95], [-1.7, 2.85, -.3], [-1.2, 2.05, -.05]], .018, lime);
-  wire([[-2.5, 1, -1.03], [-3.1, .55, -.9], [-3.45, .53, .8], [-2.7, .56, 1.4], [-1.5, 1.77, .1]], .018, pink);
+  // A rigid overhead boom carries the cable directly above the cranial implant.
+  const tetherAnchor = vec([-.738, 3.27, .2]);
+  rod([-2.55, .45, -1.03], [-2.55, 3.43, -1.03], .06, metal);
+  rod([-2.55, 3.43, -1.03], [-.738, 3.43, -1.03], .055, metal);
+  rod([-.738, 3.43, -1.03], [-.738, 3.43, .2], .055, metal);
+  box([.48, .1, .44], [-2.55, .5, -1.03], dark);
+  for (const at of [[-2.55, 3.43, -1.03], [-.738, 3.43, -1.03]]) orb([.085, .085, .085], at, metal, group, 1);
+  rod([-.738, 3.49, .2], tetherAnchor.toArray(), .075, dark);
+  rod([-.738, 3.32, .2], [ -.738, 3.285, .2], .081, lime);
   // Original low-poly Drosophila, facing its terminal.
   const fly = new THREE.Group(); fly.position.set(-1.35, 1.43, .35); fly.rotation.y = .24; group.add(fly);
   const shell = material(0x587b7d, { flatShading: true, metalness: .33, roughness: .53 });
@@ -106,18 +109,59 @@ export function createLab(canvas, onReady) {
     wings.push(wing);
   }
   const harness = mesh(new THREE.TorusGeometry(.515, .035, 5, 18, Math.PI * 1.5), dark, [-.13, .06, 0], fly); harness.rotation.y = Math.PI / 2;
-  const electrode = orb([.09, .07, .09], [-.1, .6, .02], lime, fly, 1);
-  for (const side of [-1, 1]) orb([.07, .07, .07], [-.1, .07, side * .53], cyan, fly, 1);
+  // The implant is seated in the crown between the eyes, not on the thorax.
+  mesh(new THREE.CylinderGeometry(.12, .15, .11, 12), metal, [0, .39, 0], head);
+  const cranialRing = mesh(new THREE.TorusGeometry(.125, .019, 6, 18), lime, [0, .444, 0], head);
+  cranialRing.rotation.x = Math.PI / 2;
+  rod([0, .445, 0], [0, .65, 0], .05, dark, head, 12);
+  for (const y of [.49, .545, .6]) mesh(new THREE.CylinderGeometry(.066, .066, .025, 10), metal, [0, y, 0], head);
+  const electrode = orb([.059, .025, .059], [0, .635, 0], glow(C.lime, 2), head, 1);
+  const socketTip = new THREE.Vector3(0, .675, 0);
+  const tetherCurve = new THREE.CatmullRomCurve3([
+    tetherAnchor.clone(), vec([-.69, 3.05, .22]), vec([-.75, 2.66, .2]), vec([-.738, 2.295, .2])
+  ]);
+  const tetherSegments = 28, tetherSides = 8, tetherRadius = .039;
+  const tether = mesh(new THREE.TubeGeometry(tetherCurve, tetherSegments, tetherRadius, tetherSides, false), material(0x172b2b, { roughness: .39, metalness: .15 }), [0, 0, 0]);
+  const stripeGeometry = new THREE.BufferGeometry();
+  stripeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((tetherSegments + 1) * 3), 3));
+  group.add(new THREE.Line(stripeGeometry, new THREE.LineBasicMaterial({ color: C.lime, transparent: true, opacity: .9 })));
+  const tetherPoint = new THREE.Vector3();
+  function updateTether() {
+    // Follow the moving implant while keeping the upper end fixed to the boom.
+    head.localToWorld(tetherCurve.points[3].copy(socketTip));
+    group.worldToLocal(tetherCurve.points[3]);
+    tetherCurve.points[2].copy(tetherCurve.points[3]).add(new THREE.Vector3(-.025, .34, 0));
+    tetherCurve.updateArcLengths();
+    const frames = tetherCurve.computeFrenetFrames(tetherSegments, false);
+    const positions = tether.geometry.attributes.position, normals = tether.geometry.attributes.normal;
+    for (let i = 0; i <= tetherSegments; i++) {
+      tetherCurve.getPointAt(i / tetherSegments, tetherPoint);
+      const n = frames.normals[i], b = frames.binormals[i];
+      for (let j = 0; j <= tetherSides; j++) {
+        const angle = j / tetherSides * Math.PI * 2, c = -Math.cos(angle), s = Math.sin(angle);
+        const nx = c * n.x + s * b.x, ny = c * n.y + s * b.y, nz = c * n.z + s * b.z;
+        const index = i * (tetherSides + 1) + j;
+        positions.setXYZ(index, tetherPoint.x + tetherRadius * nx, tetherPoint.y + tetherRadius * ny, tetherPoint.z + tetherRadius * nz);
+        normals.setXYZ(index, nx, ny, nz);
+      }
+      stripeGeometry.attributes.position.setXYZ(i, tetherPoint.x, tetherPoint.y, tetherPoint.z + tetherRadius + .002);
+    }
+    positions.needsUpdate = normals.needsUpdate = stripeGeometry.attributes.position.needsUpdate = true;
+    tether.geometry.computeBoundingSphere();
+    stripeGeometry.computeBoundingSphere();
+  }
+  updateTether();
 
   // Portrait terminal physically lives in the same scene as the fly.
-  const terminal = new THREE.Group(); terminal.position.set(1.78, 2.34, -.4); terminal.rotation.y = -.13; group.add(terminal);
+  const terminal = new THREE.Group(); terminal.position.set(1.78, 2.34, -.4); terminal.rotation.set(.08, -.68, 0); group.add(terminal);
   box([1.88, 3.37, .19], [0, 0, 0], material(0x17232b, { roughness: .3, metalness: .8 }), terminal);
   box([1.76, 3.25, .05], [0, 0, .12], material(0x010305), terminal);
   box([.95, .016, .013], [0, -1.68, .1], cyan, terminal);
   box([.34, .038, .027], [0, 1.55, .167], dark, terminal);
   orb([.026, .026, .014], [.28, 1.55, .176], glow(0x527960), terminal, 1);
   rod([1.78, .49, -.48], [1.78, 1.03, -.48], .07, metal);
-  box([1.36, .08, .82], [1.78, .49, -.32], metal);
+  const terminalBase = box([1.36, .08, .82], [1.78, .49, -.32], metal);
+  terminalBase.rotation.y = terminal.rotation.y;
   label('V I T R E O U S   /   0 1', .73, .07, [0, -1.625, .153], terminal, '#748e80', null, 22);
 
   // Signal box, cables, and a conspicuously untouched piece of fruit.
@@ -125,7 +169,8 @@ export function createLab(canvas, onReady) {
   box([1.19, .7, .75], [0, 0, 0], dark, boxGroup);
   label('NEUROLINK\n166,700 CELLS', .83, .33, [-.06, .05, .386], boxGroup, '#8db798', '#101d20', 34);
   for (let i = 0; i < 5; i++) orb([.022, .022, .015], [-.36 + i * .17, -.24, .392], i % 2 ? cyan : lime, boxGroup, 1);
-  wire([[3.1, .62, 1.33], [2.4, .47, 1.8], [1, .49, 2.1], [-.5, .5, 1.9], [-1.45, 1.6, .9]], .018, dark);
+  // Route the supply around the back of the desk and up the boom; no loose side leads enter the fly.
+  wire([[3.1, .62, 1.33], [3.55, .49, .8], [3.3, .49, -1.65], [-1.9, .49, -1.65], [-2.65, .63, -1.1], [-2.65, 3.38, -1.03], [-2.55, 3.51, -1.03], [-.74, 3.51, -1.03], [-.738, 3.51, .2]], .031, dark);
   wire([[1.7, .63, -.58], [2.4, .48, -.9], [3, .49, .15], [3.15, .65, 1.35]], .019, glow(0x3e827b, .6));
   const fruit = orb([.16, .18, .15], [-3.59, .6, 1.73], material(0x73832d, { flatShading: true }), group, 1); rod([-3.59, .76, 1.73], [-3.55, .84, 1.72], .014, dark);
 
@@ -154,6 +199,7 @@ export function createLab(canvas, onReady) {
     const motor = Math.min(1.5, Math.max(0, (state.motorHz || 0) / 60));
     fly.position.y = 1.43 + Math.sin(move * 2.3) * .014 + Math.sin(move * 39) * excitement * .017;
     head.rotation.z = Math.sin(move * .7) * .025 + Math.max(-.13, Math.min(.13, (state.turnHz || 0) / 200));
+    updateTether();
     wings.forEach((w, i) => { w.rotation.x = (i ? 1 : -1) * (Math.sin(move * (motor > .1 ? 49 : 13)) * (.025 + motor * .21) + Math.sin(move * .61) * .012); });
     legs.forEach((l, i) => { l.rotation.x = Math.sin(move * 3.5 + i * 1.5) * .013 * (1 + excitement * 3); });
     electrode.material.emissiveIntensity = 1.4 + Math.sin(move * 6) * .4 + excitement * 3;
