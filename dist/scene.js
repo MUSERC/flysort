@@ -61,13 +61,13 @@ export function createLab(canvas, feedCanvas) {
   rod([-.738, 3.32, .2], [ -.738, 3.285, .2], .081, lime);
   // Original low-poly Drosophila, facing its terminal.
   const fly = new THREE.Group(); fly.position.set(-1.35, 1.43, .35); fly.rotation.y = .24; group.add(fly);
-  const shell = material(0x090c0e, { flatShading: true, metalness: .12, roughness: .8 });
-  const flyMetal = material(0x0b0e10, { metalness: .16, roughness: .72 }), flyDark = material(0x040607, { metalness: .08, roughness: .8 });
-  const abdomen = orb([.91, .39, .43], [-.83, -.02, 0], material(0x030506, { flatShading: true, metalness: .1, roughness: .82 }), fly);
-  for (let i = 0; i < 5; i++) { const ring = mesh(new THREE.TorusGeometry(.36 - i * .035, .035, 4, 14), material(0x141819, { metalness: .12, roughness: .8 }), [-.65 - i * .17, -.01, 0], fly); ring.rotation.y = Math.PI / 2; ring.scale.z = .94; }
+  const shell = material(0x293e46, { flatShading: true, metalness: .3, roughness: .55 });
+  const flyMetal = material(0x243239, { metalness: .38, roughness: .48 }), flyDark = material(0x101619, { metalness: .12, roughness: .65 });
+  const abdomen = orb([.91, .39, .43], [-.83, -.02, 0], material(0x142429, { flatShading: true, metalness: .24, roughness: .58 }), fly);
+  for (let i = 0; i < 5; i++) { const ring = mesh(new THREE.TorusGeometry(.36 - i * .035, .035, 4, 14), material([0x314843, 0x3e493d, 0x304447, 0x39413b, 0x2b3b40][i], { metalness: .3, roughness: .56 }), [-.65 - i * .17, -.01, 0], fly); ring.rotation.y = Math.PI / 2; ring.scale.z = .94; }
   const thorax = orb([.66, .53, .5], [-.05, .08, 0], shell, fly);
   const head = new THREE.Group(); head.position.set(.63, .19, 0); fly.add(head);
-  orb([.41, .4, .4], [0, 0, 0], material(0x0c1012, { flatShading: true, metalness: .1, roughness: .78 }), head);
+  orb([.41, .4, .4], [0, 0, 0], material(0x40515a, { flatShading: true, metalness: .28, roughness: .5 }), head);
   const eyeMaterial = material(0x9e1837, { flatShading: true, roughness: .29, metalness: .45, emissive: 0x3c0614, emissiveIntensity: .4 });
   const eyes = [];
   for (const side of [-1, 1]) {
