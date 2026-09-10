@@ -59,3 +59,9 @@ Each accepted playing-video observation now injects 20 mV-equivalent current int
 All **7 Python checks**, including the full-graph assays and real HTTP worker with automatic reward both enabled and disabled, passed. They verify received pixels, delivered current, waiting without frames, pause, manual pulses, and checkpoint restore. All **23 JavaScript checks** passed, including immediate observation gating on buffering and seeking.
 
 The local app restarted from its saved state at 413.40 s neural time. Live insect footage produced **70 PAM11 spikes in 50 ms (93.33 Hz)** with automatic drive and no manual pulse. Pausing held sample sequence and neural time unchanged; resuming produced 66 PAM11 spikes (88 Hz) with video stimulation restored. A copy of the pre-change checkpoint is retained locally as `runs/local/brain-before-video-reward.npz`. These are numerical stimulation checks, not evidence of pleasure or learned preference.
+
+## Live dopamine activity chart — 2026-09-11
+
+The overlay now shows one full-width chart of measured PAM11 firing in Hz, with labeled bounds and an automatic detail scale. A live 120-sample window ranged from 84 to 97.33 Hz; browser inspection showed visible rises and falls and a changing current reading (90.7 then 86.7 Hz), with no browser errors or warnings. This is neuronal firing, not dopamine concentration.
+
+All **27 JavaScript checks** passed. The four new chart checks cover preserving measured values and timestamps, honest zero/flat/missing data, duplicate samples and clock resets, and the rolling window without clipping extremes. The numerical model and stimulation policy are unchanged.

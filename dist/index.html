@@ -36,12 +36,11 @@
         <aside class="neural-overlay" aria-label="Measured neural activity">
           <div class="overlay-heading"><span>LIVE NEURAL ACTIVITY</span><span class="live-dot"></span></div>
           <div class="neural-metrics">
-            <div><span class="metric-label">NETWORK FIRING</span><div class="metric-number"><strong id="neural-value">—</strong><span>spikes/s</span></div></div>
+            <div><span class="metric-label">DOPAMINE ACTIVITY</span><div class="metric-number"><strong id="dopamine-value">—</strong><span>Hz</span></div><span class="sample-label">15 PAM11 neurons</span></div>
             <div><span class="metric-label">FLY SPIKES</span><div class="metric-number"><strong id="spike-value">—</strong></div><span class="sample-label" id="sample-label">Waiting for a sample</span></div>
           </div>
           <div class="neural-plots">
-            <div class="plot"><div class="plot-label"><span>NETWORK ACTIVITY</span><span id="activity-peak">—</span></div><canvas id="activity-chart" role="img" aria-label="Measured network spikes per simulated second; zero-based scale"></canvas></div>
-            <div class="plot"><div class="plot-label"><span>SPIKE RASTER</span><span>96 cells</span></div><canvas id="spike-raster" role="img" aria-label="Actual spikes from 96 sampled neurons, in 10 millisecond bins"></canvas></div>
+            <div class="plot dopamine-plot"><div class="plot-label"><span>PAM11 FIRING RATE</span><span id="dopamine-range">WAITING FOR DATA</span></div><canvas id="dopamine-chart" role="img" aria-label="Measured firing rate of PAM11 dopamine neurons in Hz; automatically scaled, with axis bounds shown"></canvas></div>
           </div>
         </aside>
         <div class="scene-status" id="engine-message" role="status"></div>

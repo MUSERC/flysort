@@ -2,12 +2,13 @@ import { createLab } from './scene.js';
 import { createPlayback, createFrameClock } from './simulation.js';
 import { VideoFeed } from './video-feed.js';
 import { BrainClient } from './backend.js';
+import { dopaminePlot } from './dopamine-plot.js';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#scene'), reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let lab, view = 0, messageTimer, status = null, connection = 'CONNECTING', commandPending = false;
 let soundOn = false, sceneFailed = false, sceneRendered = false, connectionError = '';
-const playback = createPlayback(), state = playback.state, activityHistory = [];
+const playback = createPlayback(), state = playback.state;
 const feed = new VideoFeed({ reducedMotion, onChange: updateLabels });
 try { lab = createLab(canvas, feed.canvas); }
 catch (error) { sceneFailed = true; console.error(error); $('#scene-error').hidden = false; }
@@ -22,18 +23,13 @@ const client = new BrainClient({
     if (data.telemetry) {
       const t = data.telemetry;
       state.pam11Hz = t.pam11_hz; state.motorHz = t.motor_hz; state.turnHz = t.turn_hz;
-      if (activityHistory.length && t.sim_ms < activityHistory.at(-1).simMs) activityHistory.length = 0;
-      if (t.sim_ms !== activityHistory.at(-1)?.simMs) {
-        activityHistory.push({ simMs: t.sim_ms, rate: t.network_spikes_per_second });
-        if (activityHistory.length > 120) activityHistory.shift();
-      }
     }
     updateLabels(); drawTelemetry(); syncAudio();
   },
   onError(error) {
     status = null; connection = 'DISCONNECTED'; connectionError = error.message;
     playback.setPaused(true); feed.setPaused(true);
-    state.pam11Hz = state.motorHz = state.turnHz = 0; activityHistory.length = 0;
+    state.pam11Hz = state.motorHz = state.turnHz = 0;
     updateLabels(); drawTelemetry(); syncAudio();
   }
 });
@@ -53,14 +49,9 @@ async function command(action) {
   } catch (error) { showMessage(error.message); return false; }
   finally { commandPending = false; }
 }
-function compactRate(rate) {
-  if (rate >= 1e6) return `${(rate / 1e6).toFixed(2)}M`;
-  if (rate >= 1e3) return `${(rate / 1e3).toFixed(1)}K`;
-  return rate.toFixed(0);
-}
 function updateLabels() {
   const t = status?.telemetry, ready = status?.phase === 'ready';
-  $('#neural-value').textContent = t ? compactRate(t.network_spikes_per_second) : '—';
+  $('#dopamine-value').textContent = Number.isFinite(t?.pam11_hz) ? t.pam11_hz.toFixed(1) : '—';
   $('#spike-value').textContent = t ? t.total_spikes.toLocaleString() : '—';
   $('#sample-label').textContent = t ? `in ${t.interval_ms} ms of neural time` : 'Waiting for a sample';
   const seconds = Math.floor(state.time), minutes = Math.floor(seconds / 60);
@@ -113,23 +104,28 @@ function contextFor(element) {
   return { ctx, w: rect.width, h: rect.height };
 }
 function drawTelemetry() {
-  const { ctx: c, w, h } = contextFor($('#activity-chart'));
-  c.clearRect(0, 0, w, h); c.strokeStyle = '#46605266'; c.lineWidth = .6;
-  for (let i = 1; i <= 3; i++) { c.beginPath(); c.moveTo(0, i * h / 4); c.lineTo(w, i * h / 4); c.stroke(); }
-  const peak = Math.max(1, ...activityHistory.map(p => p.rate)) * 1.15;
-  $('#activity-peak').textContent = activityHistory.length ? `0–${compactRate(peak)}/s` : '—';
-  const y = value => h - 2 - value / peak * (h - 4), x = i => i / Math.max(1, activityHistory.length - 1) * (w - 3);
-  if (activityHistory.length) {
-    c.beginPath(); activityHistory.forEach((p, i) => i ? c.lineTo(x(i), y(p.rate)) : c.moveTo(0, y(p.rate)));
-    c.strokeStyle = '#c4f86a'; c.lineWidth = 1.8; c.stroke();
-    c.lineTo(x(activityHistory.length - 1), h); c.lineTo(0, h); c.closePath(); c.fillStyle = '#c4f86a12'; c.fill();
-    c.beginPath(); c.arc(x(activityHistory.length - 1), y(activityHistory.at(-1).rate), 2.5, 0, Math.PI * 2); c.fillStyle = '#e4ffaa'; c.fill();
+  const { ctx: c, w, h } = contextFor($('#dopamine-chart'));
+  const { points, minimum, maximum } = dopaminePlot(status?.history);
+  c.clearRect(0, 0, w, h);
+  $('#dopamine-range').textContent = points.length ? `${minimum}–${maximum} Hz · AUTO SCALE` : 'WAITING FOR DATA';
+  const left = 32, right = w - 5, top = 7, bottom = h - 6;
+  const y = rate => bottom - (rate - minimum) / (maximum - minimum) * (bottom - top);
+  c.font = '11px monospace'; c.textAlign = 'left'; c.textBaseline = 'middle';
+  for (let i = 0; i <= 2; i++) {
+    const rate = minimum + (maximum - minimum) * i / 2;
+    c.strokeStyle = '#698f6840'; c.lineWidth = .7;
+    c.beginPath(); c.moveTo(left, y(rate)); c.lineTo(right, y(rate)); c.stroke();
+    c.fillStyle = '#a3baa3'; c.fillText(`${Number(rate.toFixed(1))}`, 0, y(rate));
   }
-  const { ctx: s, w: rw, h: rh } = contextFor($('#spike-raster')); s.clearRect(0, 0, rw, rh);
-  const raster = status?.raster || [], columns = Math.max(1, raster.length);
-  raster.forEach((bin, col) => bin.counts.forEach((count, row) => {
-    if (count > 0) { s.fillStyle = `rgba(166,232,173,${Math.min(1, .45 + count * .25)})`; s.fillRect(col / columns * rw, row / 96 * rh, Math.max(1, rw / columns), Math.max(.6, rh / 96)); }
-  }));
+  if (!points.length) return;
+  const start = points[0].simMs, span = Math.max(1, points.at(-1).simMs - start);
+  const x = point => points.length === 1 ? right : left + (point.simMs - start) / span * (right - left);
+  c.beginPath(); points.forEach((point, i) => i ? c.lineTo(x(point), y(point.rate)) : c.moveTo(x(point), y(point.rate)));
+  c.strokeStyle = '#c4f86a'; c.lineWidth = 2; c.lineJoin = 'round'; c.stroke();
+  c.lineTo(x(points.at(-1)), bottom); c.lineTo(x(points[0]), bottom); c.closePath();
+  const fill = c.createLinearGradient(0, top, 0, bottom); fill.addColorStop(0, '#c4f86a30'); fill.addColorStop(1, '#c4f86a04');
+  c.fillStyle = fill; c.fill();
+  c.beginPath(); c.arc(x(points.at(-1)), y(points.at(-1).rate), 3, 0, Math.PI * 2); c.fillStyle = '#e4ffaa'; c.fill();
 }
 window.addEventListener('resize', drawTelemetry);
 const frameClock = createFrameClock();

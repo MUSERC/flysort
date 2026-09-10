@@ -47,7 +47,7 @@ python -m flywirehead run
 
 The browser captures the phone's image at **90×160 pixels**. Luminance and color stimulate **3,335 R1–R6 inputs and 811 R8 inputs** in the full retained MaleCNS v1.0 graph. A compiled spiking-network kernel advances **50 ms of neural time** per accepted frame, using **0.1 ms integration steps**.
 
-The overlay displays actual network spike counts, firing rates, and a 96-cell raster. Wing, body, leg, and head motion are amplified readouts of measured motor activity. Playback pauses when the window is hidden; stalled or missing video supplies no new observations.
+The overlay displays the measured **PAM11 dopamine-neuron firing rate** and whole-network spike counts. A full-width chart shows the latest 120 dopamine readings with labeled axis bounds and an automatic detail scale, making real rises and falls visible. The values are firing rates in Hz, not dopamine concentrations. Wing, body, leg, and head motion are amplified readouts of measured motor activity. Playback pauses when the window is hidden; stalled or missing video supplies no new observations.
 
 The front right leg also performs a choreographed swipe: it reaches forward, sweeps upward with the video, and returns to the platform. The gesture and phone transition share one animation clock.
 
