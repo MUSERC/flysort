@@ -5,6 +5,7 @@ Requires yt-dlp, ffmpeg, and ffprobe on PATH. Media stays outside Git.
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import shutil
@@ -28,7 +29,9 @@ def main():
     cache, output = ROOT / "runs/video-downloads", ROOT / "dist/media"
     cache.mkdir(parents=True, exist_ok=True)
     output.mkdir(parents=True, exist_ok=True)
-    ids = json.loads((ROOT / "video-sources.json").read_text())["ids"]
+    sources = json.loads((ROOT / "video-sources.json").read_text())
+    ids = sources["ids"]
+    trims = sources.get("trim_end_seconds", {})
     clips = []
     for video_id in ids:
         if not re.fullmatch(r"[\w-]{11}", video_id):
@@ -47,11 +50,16 @@ def main():
         original, source_duration = inspect(raw)
         if original["width"] >= original["height"] or not 3 <= source_duration <= 91:
             raise ValueError(f"Expected a native portrait Short lasting 3–90 seconds: {video_id}")
+        trim_end = trims.get(video_id)
+        if trim_end is not None and (not isinstance(trim_end, (int, float)) or not math.isfinite(trim_end) or not 3 <= trim_end <= source_duration):
+            raise ValueError(f"Invalid trim endpoint: {video_id}")
+        expected_duration = trim_end if trim_end is not None else source_duration
         target = output / f"{video_id}.mp4"
-        prepared = inspect(target)[0] if target.exists() else {}
-        if prepared.get("width") != 360 or prepared.get("height") != 640 or prepared.get("codec_name") != "h264":
+        prepared, prepared_duration = inspect(target) if target.exists() else ({}, 0)
+        if prepared.get("width") != 360 or prepared.get("height") != 640 or prepared.get("codec_name") != "h264" or abs(prepared_duration - expected_duration) > .1:
             temporary = output / f"{video_id}.partial.mp4"
             subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(raw),
+                            *(["-t", str(trim_end)] if trim_end is not None else []),
                             "-map", "0:v:0", "-map", "0:a?", "-vf", "scale=360:640:force_original_aspect_ratio=increase,crop=360:640,setsar=1",
                             "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", "-threads", "2",
                             "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(temporary)], check=True)
@@ -59,10 +67,14 @@ def main():
         video, duration = inspect(target)
         if video["codec_name"] != "h264" or (video["width"], video["height"]) != (360, 640) or not 3 <= duration <= 91:
             raise ValueError(f"Invalid prepared video: {video_id}")
+        if abs(duration - expected_duration) > .1:
+            raise ValueError(f"Prepared duration does not match the requested trim: {video_id}")
         clips.append({"id": video_id, "file": target.name, "title": data["title"], "channel": data.get("channel") or data.get("uploader", ""),
                       "source": source, "duration": round(duration, 3), "width": video["width"], "height": video["height"],
                       "source_width": original["width"], "source_height": original["height"],
                       "sha256": hashlib.sha256(target.read_bytes()).hexdigest()})
+        if trim_end is not None:
+            clips[-1]["trim_end_seconds"] = trim_end
         print(f'{len(clips):02d} · {duration:.1f}s · {data["title"]}', flush=True)
     temporary = output / "playlist.json.partial"
     temporary.write_text(json.dumps({"version": 1, "clips": clips}, ensure_ascii=False, indent=2) + "\n")

@@ -33,3 +33,9 @@ All 13 JavaScript checks passed, covering the retained clock/bridge behavior plu
 The landscape playlist was replaced with ten native portrait YouTube Shorts. FFprobe verified all downloaded sources at 720×1280 and every prepared file at 360×640 with square pixels. All ten were visually checked. The downloader rejects landscape sources, and the player accepts only the prepared 9:16 dimensions, drawing directly to the phone without blurred filler.
 
 The feed now advances at three seconds of played media time and wraps after ten clips. All 14 JavaScript checks passed, including just-before/at-three-second boundaries, timer reset for the next clip, and pausing at the boundary without advancing until resumed. In the local browser, the phone displayed full-height footage, the eighth short was playing at 23 seconds of exposure, and neural measurements continued updating. No browser errors or warnings appeared. The numerical backend and visual-input transport were unchanged.
+
+## User-selected five-video playlist — 2026-09-11
+
+The active playlist now contains only `HOe8Ur6H8x4`, `rUmhjdFVPFo`, `lYrSza4cYaE`, `db5JqXQekmE`, and `PBWmPoLjVvA`, in that order. All five downloaded successfully, were visually inspected, and verified at 360×640. The final prepared MP4 contains only the first four seconds; FFprobe reports exactly 4.000000 seconds. The downloader records the trim and reproduces it on later runs, including when cached output has a different duration.
+
+The refreshed local browser showed the five-clip playlist, the selected fly footage, three-second automatic swipes, and continuing neural telemetry without browser errors. Playback and neural code were unchanged; validation focused on playlist identity/order, dimensions, file hashes, the four-second media cut, and a successful repeat preparation from the download cache.

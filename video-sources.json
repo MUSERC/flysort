@@ -1,4 +1,5 @@
 {
-  "description": "Native portrait YouTube Shorts about flies and insects. Prepared at 360×640 and presented for three seconds each.",
-  "ids": ["PWOrFuyX8VA", "SMUY4DFEVko", "xff46DVLbNg", "QcvqAM_2cK4", "fbO-OrxMZzQ", "lQKMSZyso0w", "uEkdJ0pmbH4", "yA-ucDPsNSs", "KQqAL7AePJc", "wbX3kic3KVY"]
+  "description": "The five user-selected YouTube Shorts, in the requested order. Prepared at 360×640 and presented for three seconds each.",
+  "ids": ["HOe8Ur6H8x4", "rUmhjdFVPFo", "lYrSza4cYaE", "db5JqXQekmE", "PBWmPoLjVvA"],
+  "trim_end_seconds": {"PBWmPoLjVvA": 4}
 }
