@@ -1,6 +1,6 @@
 # Fly / Wirehead
 
-A local Python/C++ fly-connectome experiment with a 3D observation window. The full **166,700-neuron / 25,582,938-connection MaleCNS v1.0 network** receives RGB pixels captured from the shortform screen. The displayed firing rates, raster, and synaptic changes come from that running network.
+A local Python/C++ fly-connectome experiment with a 3D observation window. The full **166,700-neuron / 25,582,938-connection MaleCNS v1.0 network** receives RGB pixels captured from the shortform screen. The displayed spike totals, network firing rate, and raster come from that running network.
 
 ## Start
 
@@ -42,21 +42,23 @@ The playlist automatically advances after three seconds of actual media playback
 
 ## Reward, learning, and movement
 
-**Stimulate PAM11** schedules a **200 ms, 20 mV-equivalent current** into the 15 annotated PAM11 cells. The pulse advances in neural time as frames are processed. Repeated clicks replace the remaining pulse rather than stacking unlimited current. There are no hardcoded per-video dopamine scores and no automatic reward on a swipe.
+**PAM11 stimulation** (keyboard **P** or WebMCP) schedules a **200 ms, 20 mV-equivalent current** into the 15 annotated PAM11 cells. The pulse advances in neural time as frames are processed. Repeated requests replace the remaining pulse rather than stacking unlimited current. There are no hardcoded per-video dopamine scores and no automatic reward on a swipe.
 
-The upstream experimental plasticity rule can modify the **7,835 existing KC→MBON07/11 connections**. The panel reports how many differ from baseline. A changing weight alone is not evidence of useful learning, pleasure, attention, or addiction. PAM11 is shown in **spikes per neuron per neural second (Hz)**, not a fabricated dopamine concentration or percentage.
+The upstream experimental plasticity rule can modify the **7,835 existing KC→MBON07/11 connections**. The API and saved telemetry report how many differ from baseline. A changing weight alone is not evidence of useful learning, pleasure, attention, or addiction. PAM11 telemetry uses **spikes per neuron per neural second (Hz)**, not a fabricated dopamine concentration or percentage.
 
-The 3D movement is an artistic readout: wing flutter maps MN9/DNp09 firing, head turning maps DNa02 right-minus-left firing, and electrode glow maps PAM11 firing. Ambient breathing, city lighting, and screen motion are visual effects. This is not a validated biomechanical fly model.
+The 3D movement is an amplified artistic readout: wing flutter and body/leg motion map MN9/DNp09 firing, head turning maps DNa02 right-minus-left firing, and electrode glow maps PAM11 firing. Motor rates use a saturating response tuned for the observed 5–30 Hz range, with a 100 ms attack and 700 ms release so brief bursts remain visible. Turning is smoothed over 200 ms. This changes only the animation; it adds no neural spikes or stimulation. Ambient breathing, city lighting, and screen motion are visual effects. This is not a validated biomechanical fly model.
+
+The display puts network activity and the spike raster over the chamber, with no current-video captions or visible controls. **Network firing** counts spikes across the full graph per simulated second; **Fly spikes** is the actual count in the most recent 50 ms neural sample. The network graph uses a labelled zero-based scale. Quiet PAM11 cells are not a measure of overall network activity.
 
 ## Controls and persistence
 
-- Drag to orbit; use the crosshair button for three camera positions.
-- Scroll, swipe vertically, press an arrow key, or click **Next short**.
-- **Space / pause** pauses the actual video and stops new neural observations after any already-running step finishes.
-- **Stimulate PAM11** applies a real current input to the numerical model.
-- **Save brain** writes a checkpoint. Checkpoints are also saved every two active minutes and on **Ctrl-C**.
+- Playback runs automatically with no visible controls. Drag to orbit; **C** cycles three camera positions and **F** toggles fullscreen.
+- Scroll, swipe vertically, or press an arrow key to skip a short.
+- **Space** pauses the actual video and stops new neural observations after any already-running step finishes.
+- **P** applies PAM11 stimulation to the numerical model.
+- **S** requests a checkpoint. Checkpoints are also saved every two active minutes and on **Ctrl-C**.
 - Restarting restores neural state and plastic weights from `runs/local/brain.npz`. Queued stimulation is not replayed on restart.
-- Sound plays the video's original audio and is opt-in. Reduced-motion preferences start the experiment paused. Hidden or closed observation windows pause playback and supply no new frames, so the brain waits.
+- **M** toggles the video's original audio, which starts muted. Reduced-motion preferences start the experiment paused. Hidden or closed observation windows pause playback and supply no new frames, so the brain waits.
 - One observation window at a time supplies the sensory stream. A second can take over after four seconds without input from the first.
 
 `runs/local/events.jsonl` contains actual measurements and input/spike hashes; `latest.json` is the last observation; `provenance.json` records the data/model/source configuration. Neuron IDs are serialized as strings to preserve integer precision.

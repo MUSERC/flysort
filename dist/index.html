@@ -14,51 +14,45 @@
 </head>
 <body>
   <header class="masthead">
-    <a class="wordmark" href="./" aria-label="Fly Wirehead home"><span class="brand-mark">⌘</span> FLY<span class="slash">/</span>WIREHEAD<span class="version">v0.2</span></a>
+    <a class="wordmark" href="./" aria-label="Fly Wirehead home"><span class="brand-mark">⌘</span> FLY <span class="slash">/</span> WIREHEAD</a>
     <span class="header-note">AN EXPERIMENT IN ATTENTION</span>
-    <button class="text-button" id="about-open">What is this? <span>↗</span></button>
   </header>
-
   <main>
     <div class="intro">
-      <div><div class="eyebrow">SPECIMEN 001 · DROSOPHILA MELANOGASTER</div><h1>Born to fly. <span>Forced to scroll.</span></h1><p>A full fly connectome, watching shortform. Running on this machine.</p></div>
-      <div class="experiment-state"><span class="live-dot"></span><span id="top-state">BRAIN CONNECTING</span><span class="session-time" id="session-time">00:00:00</span></div>
+      <h1>Born to fly. <span>Forced to scroll.</span></h1>
+      <p>A fly connectome. An endless feed.</p>
     </div>
-
-    <div class="engine-status" role="status"><span id="engine-message">Connecting to the local Python brain…</span><span id="timing-detail">Waiting for a measured sample</span><button id="save-button" disabled>Save brain</button><small id="checkpoint-label">SAVES ON EXIT</small></div>
-    <div class="workspace">
-      <section class="observation" aria-label="Interactive 3D fly observation chamber">
-        <div class="panel-bar"><span><span class="crosshair">⌖</span> OBSERVATION CHAMBER</span><span class="bar-meta">CAM 01 <span class="muted">/</span> LIVE</span></div>
-        <div class="scene-wrap" id="scene-wrap">
-          <canvas id="scene" aria-label="A 3D fly wired to a screen playing an endless shortform feed"></canvas>
-          <div class="scene-error" id="scene-error" hidden>Your browser couldn’t start the 3D scene. Try a browser with WebGL enabled.</div>
-          <div class="scene-coordinate"><span class="live-dot"></span> <span id="link-label">LOCAL BRAIN REQUIRED</span><small id="link-detail">PYTHON + C++ / NO SYNTHETIC TELEMETRY</small></div>
-          <div class="scene-view">PERSPECTIVE <span>01 / 03</span></div>
-          <div class="specimen-tag"><span>F-001</span><small id="fly-thought">waiting for neural output</small></div>
-          <div class="feed-tag"><span class="lime">↳</span> <span id="clip-label">LOCAL INSECT SHORTS</span><span id="clip-time">00:00 / 00:00</span></div>
-          <div class="scene-message" id="scene-message" role="status"></div>
-          <div class="scene-bottom"><span class="scene-help">DRAG TO ORBIT <i>·</i> SCROLL / ↓ NEXT SHORT</span><div class="scene-tools"><button id="camera-button" aria-label="Change camera view" title="Change camera view">⌖</button><button id="fullscreen-button" aria-label="Toggle fullscreen" title="Fullscreen">⛶</button></div></div>
+    <section class="observation" aria-label="Live fly observation chamber">
+      <div class="scene-wrap" id="scene-wrap">
+        <canvas id="scene" tabindex="0" aria-label="Fly and phone. Drag to orbit. Space pauses; arrow keys skip; C changes camera; M toggles audio."></canvas>
+        <div class="scene-shade" aria-hidden="true"></div>
+        <div class="scene-heading">
+          <div class="brain-status"><span class="live-dot"></span><span id="top-state">BRAIN CONNECTING</span></div>
+          <p id="model-detail">Loading the local connectome…</p>
         </div>
-        <div class="local-feed-info"><span id="feed-status">Loading local videos…</span><a id="source-link" target="_blank" rel="noreferrer" hidden>Original video ↗</a></div>
-        <div class="transport">
-          <div class="playback-controls"><button id="pause-button" class="icon-button" aria-label="Pause experiment" title="Pause (Space)">Ⅱ</button><button id="sound-button" class="icon-button" aria-label="Turn sound on" title="Toggle sound">♩<span class="sound-slash">/</span></button><span class="control-separator"></span><div class="feed-indicator"><span class="live-dot"></span><span>INSECT SHORTS<small><span id="short-number">01</span> SHORTS CONSUMED</small></span></div></div>
-          <button class="next-button" id="next-button">Next short <span>↓</span></button>
-        </div>
-      </section>
-
-      <aside class="telemetry" aria-label="Measured neural simulation output">
-        <div class="panel-bar"><span>NEURAL TELEMETRY</span><span class="live-dot"></span></div>
-        <div class="dopamine-block"><div class="metric-label">PAM11 FIRING <span>15 DOPAMINE CELLS</span></div><div class="dopamine-value"><span id="dopamine-value">—</span><small>Hz</small><span class="metric-change" id="dopamine-change">NO DATA</span></div><div class="meter"><div id="dopamine-meter"></div></div><div class="scale-labels"><span>0 Hz</span><span>100 Hz DISPLAY SCALE</span></div><canvas id="dopamine-chart" aria-label="Mean PAM11 spikes per neuron per second of simulated time"></canvas><div class="chart-labels"><span id="chart-start">NO SAMPLES</span><span id="chart-end">NEURAL TIME</span></div></div>
-        <div class="readouts"><div><span>Neural activity</span><strong id="neural-value">—</strong></div><div><span>KC firing rate</span><strong id="attention-value">—</strong></div><div><span>Changed synapses</span><strong class="lime" id="brainrot-value">—</strong></div></div>
-        <div class="raster-block"><div class="metric-label">SPIKE RASTER <span>96 NEURONS</span></div><canvas id="spike-raster" aria-label="Actual spike counts for 96 fixed sampled neurons, in 10 millisecond bins"></canvas><div class="raster-caption"><span class="live-dot"></span> 96 FIXED CELLS · 10 ms BINS</div></div>
-        <div class="stimulus-block"><div class="metric-label">REWARD PATHWAY <span>MANUAL OVERRIDE</span></div><button class="dopamine-button" id="stimulate-button"><span>ϟ</span> Stimulate PAM11 <span>↗</span></button><p>200 ms pulse · 20 mV-equivalent current</p></div>
-      </aside>
-    </div>
-
-    <section class="session-strip" aria-label="Experiment statistics"><div><span>EXPOSURE TIME</span><strong id="exposure">0m 00s</strong></div><div><span>SHORTS CONSUMED</span><strong id="consumed">01 <small>and counting</small></strong></div><div><span>SIMULATED BRAIN TIME</span><strong id="brain-time">—</strong></div><div class="subject-status"><span>SUBJECT STATUS</span><strong><span class="live-dot"></span><span id="subject-status">Connecting</span></strong></div></section>
-    <footer><span>MaleCNS v1.0 · CC BY 4.0 <span class="footer-muted">Real wiring data. Approximate neural dynamics.</span></span><a href="https://github.com/nftechie/stonkfly" target="_blank" rel="noreferrer">Inspired by stonkfly ↗</a></footer>
+        <div class="session-stamp"><span>EXPOSURE</span><strong id="session-time">00:00:00</strong></div>
+        <div class="scene-error" id="scene-error" role="alert" hidden>Your browser couldn’t start the 3D scene. Try a browser with WebGL enabled.</div>
+        <div class="scene-message" id="scene-message" role="status"></div>
+        <aside class="neural-overlay" aria-label="Measured neural activity">
+          <div class="overlay-heading"><span>LIVE NEURAL ACTIVITY</span><span class="live-dot"></span></div>
+          <div class="neural-metrics">
+            <div><span class="metric-label">NETWORK FIRING</span><div class="metric-number"><strong id="neural-value">—</strong><span>spikes/s</span></div></div>
+            <div><span class="metric-label">FLY SPIKES</span><div class="metric-number"><strong id="spike-value">—</strong></div><span class="sample-label" id="sample-label">Waiting for a sample</span></div>
+          </div>
+          <div class="neural-plots">
+            <div class="plot"><div class="plot-label"><span>NETWORK ACTIVITY</span><span id="activity-peak">—</span></div><canvas id="activity-chart" role="img" aria-label="Measured network spikes per simulated second; zero-based scale"></canvas></div>
+            <div class="plot"><div class="plot-label"><span>SPIKE RASTER</span><span>96 cells</span></div><canvas id="spike-raster" role="img" aria-label="Actual spikes from 96 sampled neurons, in 10 millisecond bins"></canvas></div>
+          </div>
+          <div class="overlay-footer"><span id="brain-time">Waiting for neural input</span><span id="timing-detail">SIMULATED TIME</span></div>
+        </aside>
+        <div class="scene-status" id="engine-message" role="status"></div>
+      </div>
+    </section>
+    <footer>
+      <p>MaleCNS v1.0 · Real wiring, approximate dynamics.<br><span>Movement amplified from measured neural activity.</span></p>
+      <div class="credits"><a href="./media/playlist.json" target="_blank" rel="noreferrer">Video credits ↗</a><a href="https://github.com/nftechie/stonkfly" target="_blank" rel="noreferrer">Inspired by stonkfly ↗</a></div>
+    </footer>
   </main>
-  <dialog id="about-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close about">×</button></form><div class="eyebrow">THE ATTENTION EXPERIMENT</div><h2>He used to like fruit.</h2><p>The phone loops vertical YouTube Shorts about flies and insects, swiping every three seconds. Original audio is available through the sound button. The screen is connected to a local fly-network simulation. Its pixels drive the model’s visual inputs. Stimulating PAM11 cells can modify an experimental memory rule on existing synapses.</p><p>Drag to look around the chamber. Swipe, scroll, or press <kbd>↓</kbd> to change the short. Press <kbd>Space</kbd> to pause. Stimulate PAM11 to make a questionable situation worse.</p><div class="about-note">The local Python/C++ engine integrates 166,700 neurons and 25.6 million connections from MaleCNS v1.0, with simplified spiking dynamics. Screen pixels drive 4,146 mapped visual inputs. PAM11 stimulation targets 15 annotated dopamine cells; the interface shows their measured firing rates, not dopamine concentration. Feed playback uses wall time; each accepted frame advances a fixed interval of neural time, shown separately. The fly’s movements are artistic mappings of recorded activity. The model does not measure attention, pleasure, consciousness, addiction, or proven learning.</div><a href="https://github.com/nftechie/stonkfly" target="_blank" rel="noreferrer">Inspired by nftechie’s stonkfly ↗</a></dialog>
   <script type="module" src="./main.js"></script>
 </body>
 </html>

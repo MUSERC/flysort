@@ -15,7 +15,7 @@ export class VideoFeed {
     video.preload = 'auto'; video.muted = true; video.playsInline = true; video.loop = false;
     video.addEventListener('loadeddata', () => { this.loading = false; this.phase = 'ready'; this.onChange(); if (!this.wantsPaused) void this.play(); });
     video.addEventListener('ended', () => { if (!this.wantsPaused) this.next(true); });
-    video.addEventListener('error', () => { this.error = 'This local video could not be loaded. Try Next short.'; this.phase = 'error'; this.lastFrameAt = -Infinity; this.onChange(); });
+    video.addEventListener('error', () => { this.error = 'This local video could not be loaded. Press an arrow key to skip it.'; this.phase = 'error'; this.lastFrameAt = -Infinity; this.onChange(); });
     this.placeholder('INSECT TV', 'Loading local videos…');
   }
   get current() { return this.clips[this.index]; }
@@ -49,7 +49,7 @@ export class VideoFeed {
   async play() {
     const generation = this.generation;
     try { await this.video.play(); if (generation === this.generation) { this.error = ''; this.onChange(); } }
-    catch (error) { if (generation === this.generation && error.name !== 'AbortError') { this.error = 'Click Resume to start the video.'; this.onChange(); } }
+    catch (error) { if (generation === this.generation && error.name !== 'AbortError') { this.error = 'Press Space to start the video.'; this.onChange(); } }
   }
   setPaused(value) {
     if (this.wantsPaused === value) return;
