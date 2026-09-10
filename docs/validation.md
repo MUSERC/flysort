@@ -8,6 +8,12 @@ Verified on 2026-09-10 with Python 3.12.11 and the committed dependency lock.
 - Frozen plasticity preserved the saved weights despite reward-cell spiking.
 - Restoring the checkpoint and replaying the control input produced the exact same spike hash.
 - A real local HTTP worker received RGBA pixels, saved the corresponding RGB image exactly, delivered the requested 200 ms pulse over four observations, stopped receiving observations when paused, and saved a checkpoint at 250 ms neural time.
-- Four fast Python checks cover pixel orientation/shape and local API validation, ownership, pause, and stimulation controls. Two full-network integration checks cover the above model and transport behaviors. Six JavaScript checks cover presentation timing and the backend bridge, including no fabricated telemetry on disconnect.
+- Four fast Python checks cover pixel orientation/shape and local API validation, ownership, pause, and stimulation controls. Two full-network integration checks cover the above model and transport behaviors. Nine JavaScript checks cover presentation timing and the backend bridge, including no fabricated telemetry on disconnect.
 
-Commands are in the root README. Full-network tests are opt-in because they require the separately downloaded dataset. The browser's GPU rendering and optional WebMCP registration were not interactively tested; source syntax, module references, UI targets, HTTP serving, raw pixel transport, and the full numerical backend were checked.
+Commands are in the root README. Full-network tests are opt-in because they require the separately downloaded dataset. Source syntax, module references, UI targets, HTTP serving, raw pixel transport, and the full numerical backend were checked. The optional WebMCP tool was registered successfully in the browser; its actions have not been interactively tested.
+
+## Rendering regression — 2026-09-11
+
+The local browser console reproduced a startup failure: the first `requestAnimationFrame` timestamp could precede the `performance.now()` value recorded during setup, passing a negative time step to playback and stopping the loop before the first render. The presentation clock now initializes from the first animation frame and bounds subsequent time steps. Pixel submission waits for a successfully rendered scene, and a rendering exception suspends visual input and shows a visible error.
+
+All nine JavaScript checks passed, including the startup timestamp regression, repeated timestamps/suspended-tab gaps, and withholding frame requests when rendering is unavailable. In the actual local browser, the fly, overhead cable, and angled video screen rendered successfully; the exposure clock advanced, automatic and manual short changes worked, camera switching worked, and neural telemetry continued updating. No new browser errors appeared after the fix. These were browser/presentation changes; the numerical model was unchanged.

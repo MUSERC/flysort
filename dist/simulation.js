@@ -6,6 +6,17 @@ export const clips = [
   { category: 'ONE MORE LOOP', user: '@infinite.geometry', caption: 'you have been here before', tag: '#hypnotic #infinite', likes: '67.3K', duration: 10 },
 ];
 
+export function createFrameClock() {
+  let previous = null;
+  return now => {
+    // The first rAF timestamp can precede performance.now() during startup.
+    // Use only frame timestamps, and bound gaps after a suspended tab resumes.
+    const dt = previous === null ? 0 : Math.max(0, Math.min((now - previous) / 1000, .05));
+    previous = now;
+    return dt;
+  };
+}
+
 // Presentation clock only. All neural measurements come from the local backend.
 export function createPlayback({ reducedMotion = false, onNext = () => {} } = {}) {
   const state = { time: 0, clipElapsed: 0, clipIndex: 0, swipe: 1, swipeElapsed: 1, paused: true, consumed: 1, pam11Hz: 0, motorHz: 0, turnHz: 0 };

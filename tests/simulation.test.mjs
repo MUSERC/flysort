@@ -1,9 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPlayback, clips } from '../dist/simulation.js';
+import { createPlayback, createFrameClock, clips } from '../dist/simulation.js';
 import { BrainClient } from '../dist/backend.js';
 
 const advance = (sim, seconds) => { for (let i = 0; i < Math.ceil(seconds * 60); i++) sim.tick(1 / 60); };
+test('first animation frame renders even when its timestamp precedes the startup clock', t => {
+  t.mock.method(performance, 'now', () => 1010);
+  const clock = createFrameClock(), sim = createPlayback();
+  sim.setPaused(false);
+  // rAF reports the frame's timestamp, which may be older than setup code.
+  assert.doesNotThrow(() => sim.tick(clock(1000)));
+  assert.equal(sim.state.time, 0);
+  sim.tick(clock(1016)); sim.tick(clock(1032));
+  assert.equal(sim.state.time, .032);
+});
+test('frame clock tolerates repeated timestamps and bounds suspended-tab gaps', () => {
+  const clock = createFrameClock(), sim = createPlayback(); sim.setPaused(false);
+  for (const now of [0, 0, -1, 0, 60000, 60016]) sim.tick(clock(now));
+  assert.ok(sim.state.time > 0 && sim.state.time < .1);
+});
 test('presentation waits for the backend and never invents neural telemetry', () => {
   const sim = createPlayback(); advance(sim, 10);
   assert.equal(sim.state.time, 0); assert.equal(sim.state.pam11Hz, 0);
@@ -44,4 +59,12 @@ test('disconnect clears measured status and cannot advance or inject a fake brai
   assert.equal(client.status, null); assert.equal(captures, 0); assert.equal(error.message, 'offline');
   await assert.rejects(client.action('stimulate'), /not connected/);
   await assert.rejects(client.action('fabricate'), TypeError);
+});
+test('bridge waits for a successfully rendered scene before submitting pixels', async () => {
+  const calls = [], measured = { phase: 'ready', paused: false, busy: false };
+  const client = new BrainClient({ captureFrame: () => null, onStatus: () => {}, onError: e => { throw e; }, fetcher: async path => {
+    calls.push(path); return json(path === '/api/session' ? { token: 'unit-test-token' } : measured);
+  } });
+  client.stopped = false; await client.poll(); client.stop();
+  assert.deepEqual(calls, ['/api/session', '/api/status']);
 });

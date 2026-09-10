@@ -1,22 +1,23 @@
 import { createLab } from './scene.js';
-import { clips, createPlayback } from './simulation.js';
+import { clips, createPlayback, createFrameClock } from './simulation.js';
 import { BrainClient } from './backend.js';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#scene'), reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let lab, view = 0, messageTimer, status = null, connection = 'CONNECTING', lastSequence = -1, commandPending = false;
 let soundOn = false, audioContext, master, filter;
+let sceneFailed = false, sceneRendered = false;
 const playback = createPlayback({ reducedMotion, onNext(index) { lab?.nextClip(index); playTone(340 + index * 55, .12); } });
 const state = playback.state;
 try { lab = createLab(canvas); }
-catch (error) { console.error(error); $('#scene-error').hidden = false; }
+catch (error) { sceneFailed = true; console.error(error); $('#scene-error').hidden = false; }
 const client = new BrainClient({
   reducedMotion,
-  captureFrame: () => lab?.captureFrame(),
+  captureFrame: () => sceneRendered ? lab?.captureFrame() : null,
   onStatus(data) {
     status = data;
     connection = data.phase === 'ready' ? (data.paused ? 'PAUSED' : 'CONNECTED') : data.phase.toUpperCase();
-    playback.setPaused(data.phase !== 'ready' || data.paused);
+    playback.setPaused(sceneFailed || data.phase !== 'ready' || data.paused);
     if (data.telemetry) {
       state.pam11Hz = data.telemetry.pam11_hz;
       state.motorHz = data.telemetry.motor_hz;
@@ -24,7 +25,7 @@ const client = new BrainClient({
       if (data.sequence !== lastSequence && data.telemetry.stimulus_ms > 0) playTone(520, .08);
       lastSequence = data.sequence;
     }
-    $('#engine-message').textContent = data.phase === 'error' ? `${data.message}. Run uv run flywirehead prepare, then restart.` : data.message;
+    $('#engine-message').textContent = sceneFailed ? 'Visual input suspended — reload to restart the 3D scene.' : data.phase === 'error' ? `${data.message}. Run uv run flywirehead prepare, then restart.` : data.message;
     updateLabels(); drawTelemetry(); syncAudio();
   },
   onError(error) {
@@ -61,7 +62,7 @@ function updateLabels() {
   $('#attention-value').innerHTML = t ? `${t.kc_hz.toFixed(2)} <small>Hz</small>` : '—';
   $('#brainrot-value').textContent = t ? t.memory.changed_edges.toLocaleString() : '—';
   $('#brain-time').textContent = t ? `${(t.sim_ms / 1000).toFixed(2)} s` : status?.restored_ms ? `${(status.restored_ms / 1000).toFixed(2)} s` : '—';
-  $('#subject-status').textContent = ready ? (status.paused ? (status.busy ? 'Finishing current step' : 'Paused') : status.busy ? 'Integrating neurons' : t ? 'Awaiting next frame' : 'Waiting for pixels') : connection.toLowerCase();
+  $('#subject-status').textContent = sceneFailed ? 'Scene stopped · reload to retry' : ready ? (status.paused ? (status.busy ? 'Finishing current step' : 'Paused') : status.busy ? 'Integrating neurons' : t ? 'Awaiting next frame' : 'Waiting for pixels') : connection.toLowerCase();
   $('#top-state').textContent = `BRAIN ${connection}`;
   $('#link-label').textContent = ready ? 'FULL CONNECTOME LOADED' : 'LOCAL BRAIN REQUIRED';
   $('#link-detail').textContent = ready ? `${status.model.neurons.toLocaleString()} NEURONS / ${status.model.retinal_inputs.toLocaleString()} VISUAL INPUTS` : 'PYTHON + C++ / NO SYNTHETIC TELEMETRY';
@@ -123,13 +124,25 @@ function drawTelemetry() {
   const raster = status?.raster || [];
   raster.forEach((bin, col) => bin.counts.forEach((count, row) => { if (count > 0) { s.fillStyle = `rgba(167,228,160,${Math.min(1, .3 + count * .3)})`; s.fillRect(col / 120 * rw, row / 96 * rh, Math.max(1, rw / 120), Math.max(.6, rh / 96)); } }));
 }
-let last = performance.now(), hudClock = 0;
+const frameClock = createFrameClock();
+let hudClock = 0;
 function frame(now) {
-  const dt = Math.min((now - last) / 1000, .05); last = now;
+  if (sceneFailed) return;
+  const dt = frameClock(now);
   if (!document.hidden) {
-    playback.tick(dt); lab?.render(state.time, dt, state);
-    hudClock += dt; if (hudClock > .2) { hudClock = 0; updateLabels(); }
-    if (filter && soundOn) filter.frequency.setTargetAtTime(150 + Math.min(600, state.pam11Hz * 7), audioContext.currentTime, .2);
+    sceneRendered = false;
+    try {
+      playback.tick(dt); lab.render(state.time, dt, state);
+      sceneRendered = true;
+      hudClock += dt; if (hudClock > .2) { hudClock = 0; updateLabels(); }
+      if (filter && soundOn) filter.frequency.setTargetAtTime(150 + Math.min(600, state.pam11Hz * 7), audioContext.currentTime, .2);
+    } catch (error) {
+      console.error(error); sceneFailed = true; sceneRendered = false; playback.setPaused(true);
+      $('#scene-error').textContent = 'The 3D scene stopped. Visual input is suspended. Reload to try again.';
+      $('#scene-error').hidden = false;
+      updateLabels(); syncAudio();
+      return;
+    }
   }
   requestAnimationFrame(frame);
 }
