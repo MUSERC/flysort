@@ -23,6 +23,8 @@ The 3D movement is an amplified artistic readout: wing flutter and body/leg moti
 
 The display puts network activity and the spike raster over the chamber, with no current-video captions or visible controls. **Network firing** counts spikes across the full graph per simulated second; **Fly spikes** is the actual count in the most recent 50 ms neural sample. The network graph uses a labelled zero-based scale. Quiet PAM11 cells are not a measure of overall network activity.
 
+The front right leg has an additional choreographed swipe gesture, separate from its measured motor response. Each video transition uses a shared 900 ms timeline: the leg reaches forward, its upward stroke follows the exact same easing as the outgoing video, and it returns to its resting pose. Joint positions preserve the original segment lengths. Automatic advances and manual skips use the same gesture; loading, pause, and buffering hold the shared transition. Reduced-motion mode omits both the leg gesture and the phone slide. This presentation animation does not choose videos, stimulate the neural model, or represent a learned action.
+
 ## Controls and persistence
 
 - Playback runs automatically with no visible controls. Drag to orbit; **C** cycles three camera positions and **F** toggles fullscreen.

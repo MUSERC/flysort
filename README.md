@@ -49,6 +49,8 @@ The browser captures the phone's image at **90×160 pixels**. Luminance and colo
 
 The overlay displays actual network spike counts, firing rates, and a 96-cell raster. Wing, body, leg, and head motion are amplified readouts of measured motor activity. Playback pauses when the window is hidden; stalled or missing video supplies no new observations.
 
+The front right leg also performs a choreographed swipe: it reaches forward, sweeps upward with the video, and returns to the platform. The gesture and phone transition share one animation clock.
+
 **The wiring is reconstructed; the physiology and movement mapping are approximations.** The feed advances on a timer, so the fly does not choose videos. Manual PAM11 stimulation and an experimental synaptic plasticity rule are implemented, but learned preference, pleasure, and addiction have not been established. No living fly is involved.
 
 [How the model works →](docs/model.md) · [Validation and measured results →](docs/validation.md)

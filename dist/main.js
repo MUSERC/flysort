@@ -142,7 +142,7 @@ function frame(now) {
     try {
       feed.render(dt);
       playback.setPaused(sceneFailed || status?.phase !== 'ready' || status?.paused || !feed.observing);
-      playback.tick(dt); lab.render(state.time, dt, state);
+      playback.tick(dt); lab.render(state.time, dt, state, feed.swipeProgress);
       sceneRendered = true;
       hudClock += dt; if (hudClock > .2) { hudClock = 0; updateLabels(); }
     } catch (error) {

@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { VideoFeed, nextClipIndex } from '../dist/video-feed.js';
+import { SWIPE_SECONDS, sampleSwipe } from '../dist/swipe.js';
 
 function fixture(t) {
-  const context = new Proxy({}, { get: () => () => {} });
+  const draws = [];
+  const context = new Proxy({}, { get: (_, name) => (...args) => { if (name === 'drawImage') draws.push(args); } });
   const original = globalThis.document;
   globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: () => context }) };
   t.after(() => { globalThis.document = original; });
@@ -15,7 +17,7 @@ function fixture(t) {
   const feed = new VideoFeed({ video, now: () => now });
   feed.clips = ['abcdefghijk', '12345678901'].map(id => ({ id, file: `${id}.mp4`, title: id }));
   const loaded = () => { video.readyState = 4; video.dispatchEvent(new Event('loadeddata')); };
-  return { feed, video, loaded, setTime: value => now = value };
+  return { feed, video, loaded, draws, setTime: value => now = value };
 }
 
 test('the final local video wraps to the first', () => {
@@ -50,7 +52,7 @@ test('ended advances the actual media source and manual next preserves pause', a
   const { feed, video, loaded } = fixture(t);
   feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve(); feed.render(.5);
   video.dispatchEvent(new Event('ended')); assert.equal(feed.index, 1); assert.equal(video.src, './media/12345678901.mp4');
-  loaded(); await Promise.resolve(); feed.render(.5); feed.setPaused(true);
+  loaded(); await Promise.resolve(); feed.render(SWIPE_SECONDS); feed.setPaused(true);
   assert.equal(feed.next(), true); assert.equal(feed.index, 0); assert.equal(feed.wantsPaused, true);
   assert.equal(feed.next(), false);
 });
@@ -60,4 +62,42 @@ test('a failed clip stops visual input and can be skipped', async t => {
   video.dispatchEvent(new Event('error'));
   assert.equal(feed.observing, false); assert.match(feed.error, /could not be loaded/);
   assert.equal(feed.next(), true); assert.equal(feed.error, '');
+});
+
+test('automatic and manual skips share the exact screen and foreleg timeline', async t => {
+  const { feed, video, loaded, draws } = fixture(t);
+  feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve(); feed.render(.02);
+  assert.equal(feed.swipeProgress, 1, 'initial load has no swipe gesture');
+  video.currentTime = 3; feed.render(.02);
+  assert.equal(feed.index, 1); assert.equal(feed.swipeProgress, 0);
+  feed.render(1); assert.equal(feed.swipeProgress, 0, 'loading holds the gesture');
+  loaded(); await Promise.resolve(); feed.render(SWIPE_SECONDS * .2);
+  assert.equal(sampleSwipe(feed.swipeProgress).screen, 0, 'leg lifts before the phone moves');
+  feed.render(SWIPE_SECONDS * .3);
+  assert.ok(Math.abs(feed.swipeProgress - .5) < 1e-12);
+  const oldFrame = draws.findLast(args => args[0] === feed.previous);
+  assert.equal(oldFrame[2], -sampleSwipe(feed.swipeProgress).screen * 640);
+  feed.render(SWIPE_SECONDS); assert.equal(feed.swipeProgress, 1);
+  assert.equal(feed.next(), true); assert.equal(feed.swipeProgress, 0, 'manual skips use the same gesture');
+});
+
+test('pausing, buffering, and failed loading hold both the leg and phone in place', async t => {
+  const { feed, video, loaded } = fixture(t);
+  feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve(); feed.render(.02);
+  feed.next(); loaded(); await Promise.resolve(); feed.render(.3);
+  const progress = feed.swipeProgress;
+  feed.setPaused(true); feed.render(1); assert.equal(feed.swipeProgress, progress);
+  feed.setPaused(false); await Promise.resolve();
+  video.dispatchEvent(new Event('waiting')); feed.render(1); assert.equal(feed.swipeProgress, progress);
+  video.dispatchEvent(new Event('playing')); feed.render(.05); assert.ok(feed.swipeProgress > progress);
+  const resumed = feed.swipeProgress;
+  video.dispatchEvent(new Event('error')); feed.render(1); assert.equal(feed.swipeProgress, resumed);
+});
+
+test('reduced motion replaces the clip without a phone slide or leg gesture', async t => {
+  const { feed, video, loaded } = fixture(t); feed.reducedMotion = true;
+  feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve(); feed.render(.02);
+  video.currentTime = 3; feed.render(.02); loaded(); await Promise.resolve(); feed.render(.02);
+  assert.equal(feed.index, 1); assert.equal(feed.swipeProgress, 1);
+  assert.deepEqual(sampleSwipe(feed.swipeProgress), { reach: 0, screen: 1 });
 });
