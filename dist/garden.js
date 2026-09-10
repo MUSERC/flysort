@@ -42,7 +42,7 @@ export function createGarden(parent) {
   }
   const leafGeometry = new THREE.BufferGeometry();
   leafGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); leafGeometry.computeVertexNormals();
-  const leafColors = [0x609545, 0x8baf51, 0x76a75b, 0xa1be63, 0x4f8953];
+  const leafColors = [0xaed585, 0xcce3a0, 0xbcdca0, 0xd8e8ae, 0xa6d19c];
   const leaves = [], stems = [];
   const plants = [[-7.8, -3.8, 5.4], [-5.8, -6, 6.4], [-2.8, -8, 4.2], [.9, -9, 5.7], [4.1, -8, 6.5], [7.1, -5, 5.3], [9.2, -.6, 4.3]];
   for (const [index, [x, z, height]] of plants.entries()) {
@@ -58,7 +58,7 @@ export function createGarden(parent) {
     const size = .4 + random(i + 800) * 1.15;
     leaves.push({ position: [x, -.87, z], rotation: [random(i + 91) * .6, random(i + 77) * Math.PI * 2, .3], scale: [size * .48, size, size], color: leafColors[i % leafColors.length] });
   }
-  const foliage = batch(leafGeometry, matte(0xffffff, { side: THREE.DoubleSide }), leaves);
+  const foliage = batch(leafGeometry, matte(0xffffff, { side: THREE.DoubleSide, emissive: 0xafd78d, emissiveIntensity: .22 }), leaves);
 
   // Daisies and soft pink flowers form an open border behind the subject.
   const petals = [], centers = [];
@@ -72,7 +72,7 @@ export function createGarden(parent) {
       petals.push({ position: [x + Math.cos(angle) * .47 * size, y, z + Math.sin(angle) * .47 * size], rotation: [0, -angle, 0], scale: [.46 * size, .075 * size, .18 * size], color: index % 3 === 1 ? 0xf1b3ba : 0xfff4ce });
     }
   });
-  batch(new THREE.CylinderGeometry(1, 1, 1, 5), matte(0x65904a), stems);
+  batch(new THREE.CylinderGeometry(1, 1, 1, 5), matte(0xb8d28f, { emissive: 0x9cbc7e, emissiveIntensity: .12 }), stems);
   const blossoms = batch(stone, matte(0xffffff), petals);
   batch(stone, matte(0xe9af36), centers);
 
