@@ -48,6 +48,15 @@ test('only fresh decoded playing video can supply neural input', async t => {
   video.currentTime = .2; feed.render(.02); assert.equal(feed.observing, true);
   feed.setPaused(true); assert.equal(video.paused, true); assert.equal(feed.observing, false);
 });
+test('buffering and seeking immediately stop video observations and automatic reward', async t => {
+  const { feed, video, loaded } = fixture(t);
+  feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve(); video.currentTime = .1; feed.render(.02);
+  assert.equal(feed.observing, true);
+  video.dispatchEvent(new Event('waiting')); assert.equal(feed.observing, false);
+  video.dispatchEvent(new Event('playing')); video.currentTime = .2; feed.render(.02); assert.equal(feed.observing, true);
+  video.seeking = true; assert.equal(feed.observing, false);
+  video.seeking = false; video.ended = true; assert.equal(feed.observing, false);
+});
 test('ended advances the actual media source and manual next preserves pause', async t => {
   const { feed, video, loaded } = fixture(t);
   feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve(); feed.render(.5);

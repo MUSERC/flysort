@@ -51,9 +51,19 @@ The overlay displays actual network spike counts, firing rates, and a 96-cell ra
 
 The front right leg also performs a choreographed swipe: it reaches forward, sweeps upward with the video, and returns to the platform. The gesture and phone transition share one animation clock.
 
-**The wiring is reconstructed; the physiology and movement mapping are approximations.** The feed advances on a timer, so the fly does not choose videos. Manual PAM11 stimulation and an experimental synaptic plasticity rule are implemented, but learned preference, pleasure, and addiction have not been established. No living fly is involved.
+**The wiring is reconstructed; the physiology and movement mapping are approximations.** The feed advances on a timer, so the fly does not choose videos. While videos play, an artificial current boosts the 15 PAM11 dopamine neurons; an experimental synaptic plasticity rule can change existing connections. Learned preference, pleasure, and addiction have not been established. No living fly is involved.
 
 [How the model works →](docs/model.md) · [Validation and measured results →](docs/validation.md)
+
+## Artificial dopamine drive
+
+Every accepted video frame supplies a **20 mV-equivalent current** to the model's **15 PAM11 dopamine cells** for that observation's neural time. The displayed neural measurements and electrode glow reflect the resulting spikes. Paused, buffering, hidden, or failed playback supplies no new observations or current; an observation already computing may finish.
+
+The manual **P** pulse uses the same current and does not stack with the automatic drive. To run an unstimulated comparison in its own run directory:
+
+```sh
+uv run flywirehead run --no-video-reward --run-dir runs/control
+```
 
 ## The feed
 

@@ -25,7 +25,7 @@ export class VideoFeed {
   get current() { return this.clips[this.index]; }
   get swipeProgress() { return this.reducedMotion || !this.hasPrevious ? 1 : this.transition; }
   get ready() { return !this.loading && !this.error && this.video.readyState >= 2 && !this.video.seeking; }
-  get observing() { return this.ready && !this.wantsPaused && !this.video.paused && !this.video.ended && this.now() - this.lastFrameAt < 1500; }
+  get observing() { return this.ready && !this.buffering && !this.wantsPaused && !this.video.paused && !this.video.ended && this.now() - this.lastFrameAt < 1500; }
   async load() {
     try {
       const response = await fetch('./media/playlist.json', { cache: 'no-store' });

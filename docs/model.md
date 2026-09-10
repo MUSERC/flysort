@@ -15,7 +15,13 @@ The playlist automatically advances after three seconds of actual media playback
 
 ## Reward, learning, and movement
 
-**PAM11 stimulation** (keyboard **P** or WebMCP) schedules a **200 ms, 20 mV-equivalent current** into the 15 annotated PAM11 cells. The pulse advances in neural time as frames are processed. Repeated requests replace the remaining pulse rather than stacking unlimited current. There are no hardcoded per-video dopamine scores and no automatic reward on a swipe.
+**Video-linked PAM11 stimulation is enabled by default.** Each accepted video observation applies a **20 mV-equivalent current** to the **15 annotated PAM11 cells** for the entire neural interval (50 ms by default). The C++ kernel computes the resulting spikes and propagates them through the existing network. This is a fixed artificial input, independent of the clip's identity or a swipe.
+
+The browser withholds frames while playback is loading, paused, buffering, seeking, ended, stale, hidden, or failed. Without an accepted frame the neural worker waits, so no new current or simulated time is delivered. An observation already computing can finish; residual neural activity is not forcibly erased.
+
+**Manual stimulation** (keyboard **P** or WebMCP) schedules a 200 ms pulse at the same amplitude. Manual and automatic drive overlap at 20 mV-equivalent, rather than adding together. Repeated manual requests replace the pending pulse. `stimulus_ms` records the total stimulated interval; `video_stimulus_ms` and `manual_stimulus_ms` record its possibly overlapping sources. `stimulus_current_mv` records the delivered amplitude. Model metadata and provenance record whether video stimulation is enabled.
+
+Use `--no-video-reward` with a separate `--run-dir` for an unstimulated comparison; manual pulses remain available. The low-level `FlyEngine.observe()` API requires explicit `video_reward=True`, so numerical control assays do not receive automatic reward accidentally.
 
 The upstream experimental plasticity rule can modify the **7,835 existing KC→MBON07/11 connections**. The API and saved telemetry report how many differ from baseline. A changing weight alone is not evidence of useful learning, pleasure, attention, or addiction. PAM11 telemetry uses **spikes per neuron per neural second (Hz)**, not a fabricated dopamine concentration or percentage.
 
@@ -44,7 +50,7 @@ Useful options:
 uv run flywirehead verify
 uv run flywirehead run --no-browser
 uv run flywirehead run --neural-ms 100
-uv run flywirehead run --run-dir runs/control --frozen
+uv run flywirehead run --run-dir runs/control --no-video-reward --frozen
 uv run flywirehead run --run-dir runs/new-experiment --fresh
 uv run flywirehead --data /path/to/data run
 ```

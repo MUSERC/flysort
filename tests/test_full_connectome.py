@@ -42,6 +42,22 @@ def test_pixels_reward_memory_and_checkpoint(tmp_path):
     assert not np.array_equal(b.weight[b.circuit["edges"]], control_weights)
     assert sum(sum(bin["counts"]) for bin in reward["bins"]) <= reward["total_spikes"]
     b.restore(checkpoint)
+    watching = e.observe(white, 200, video_reward=True)
+    assert watching["pam11_spikes"] > control["pam11_spikes"]
+    assert watching["spike_sha256"] == reward["spike_sha256"]
+    assert watching["video_stimulus_ms"] == 200 and watching["manual_stimulus_ms"] == 0
+    assert watching["stimulus_current_mv"] == 20 and watching["pending_stimulus_ms"] == 0
+    continued = e.observe(white, 50, video_reward=True)
+    assert continued["video_stimulus_ms"] == 50 and continued["pam11_spikes"] > 0
+    stopped = e.observe(white, 50, video_reward=False)
+    assert stopped["stimulus_ms"] == 0 and stopped["stimulus_current_mv"] == 0
+    assert np.all(b.drive[b.circuit["reward"]] == 0)
+    b.restore(checkpoint)
+    e.stimulate()
+    overlap = e.observe(white, 200, video_reward=True)
+    assert overlap["spike_sha256"] == watching["spike_sha256"], "Manual stimulation must not double the current"
+    assert overlap["manual_stimulus_ms"] == overlap["video_stimulus_ms"] == overlap["stimulus_ms"] == 200
+    b.restore(checkpoint)
     replay = e.observe(white, 200)
     assert replay["spike_sha256"] == control["spike_sha256"]
     b.restore(checkpoint)
@@ -51,10 +67,11 @@ def test_pixels_reward_memory_and_checkpoint(tmp_path):
     assert frozen["pam11_spikes"] > 0
     assert np.array_equal(b.weight[b.circuit["edges"]], baseline)
     assert np.isfinite(b.weight).all()
-    print(json.dumps({"neurons": b.n, "edges": len(b.post), "white_spikes": light["total_spikes"], "black_spikes": dark["total_spikes"], "control_pam11_spikes": control["pam11_spikes"], "stimulated_pam11_spikes": reward["pam11_spikes"], "changed_synapses": reward["memory"]["changed_edges"], "checkpoint_replay_exact": True}, indent=2))
+    print(json.dumps({"neurons": b.n, "edges": len(b.post), "white_spikes": light["total_spikes"], "black_spikes": dark["total_spikes"], "control_pam11_spikes": control["pam11_spikes"], "stimulated_pam11_spikes": reward["pam11_spikes"], "watching_pam11_spikes": watching["pam11_spikes"], "watching_pam11_hz": watching["pam11_hz"], "watching_continued_pam11_spikes": continued["pam11_spikes"], "changed_synapses": reward["memory"]["changed_edges"], "checkpoint_replay_exact": True}, indent=2))
 
 
-def test_real_model_http_transport_and_save(tmp_path):
+@pytest.mark.parametrize("video_reward", [True, False])
+def test_real_model_http_transport_and_save(tmp_path, video_reward):
     import hashlib
     from functools import partial
     import threading
@@ -64,7 +81,7 @@ def test_real_model_http_transport_and_save(tmp_path):
     from flywirehead.server import Experiment, Handler, ThreadingHTTPServer
     from flywirehead.engine import decode_frame
 
-    exp = Experiment(tmp_path)
+    exp = Experiment(tmp_path, video_reward=video_reward)
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(Handler, experiment=exp))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -96,12 +113,20 @@ def test_real_model_http_transport_and_save(tmp_path):
         assert first["telemetry"]["input_sha256"] == hashlib.sha256(expected.tobytes()).hexdigest()
         assert np.array_equal(np.asarray(Image.open(tmp_path / "latest-input.png")), expected)
         assert first["telemetry"]["total_spikes"] > 0
+        assert first["model"]["reward"]["video_enabled"] is video_reward
+        assert first["telemetry"]["video_stimulus_ms"] == (50 if video_reward else 0)
+        assert first["telemetry"]["manual_stimulus_ms"] == 0
+        time.sleep(.15)
+        idle = request("/api/status")
+        assert idle["sequence"] == first["sequence"]
+        assert idle["telemetry"]["sim_ms"] == first["telemetry"]["sim_ms"], "Without fresh video, no further stimulation or neural time is delivered"
         request("/api/control", b'{"action":"stimulate"}')
         delivered = 0
         for i in range(4):
             request("/api/frame", rgba.tobytes(), "application/octet-stream")
             result = wait_for(lambda s: s["sequence"] >= i + 2 and not s["busy"])
-            delivered += result["telemetry"]["stimulus_ms"]
+            delivered += result["telemetry"]["manual_stimulus_ms"]
+            assert result["telemetry"]["video_stimulus_ms"] == (50 if video_reward else 0)
         assert delivered == 200
         assert result["telemetry"]["pam11_spikes"] > 0
         paused = request("/api/control", b'{"action":"pause"}')
@@ -111,7 +136,7 @@ def test_real_model_http_transport_and_save(tmp_path):
         saved = wait_for(lambda s: s["checkpoint"] and not s["busy"])
         assert saved["checkpoint"]["sim_ms"] == 250
         assert (tmp_path / "brain.npz").stat().st_size > 0
-        print("Real HTTP pipeline: received pixels match saved RGB exactly; 200 ms pulse delivered; pause and checkpoint verified.")
+        print(f"Real HTTP pipeline (video reward={video_reward}): pixels, automatic reward, idle gating, 200 ms manual pulse, pause and checkpoint verified.")
     finally:
         server.shutdown()
         server.server_close()

@@ -13,7 +13,7 @@ import time
 from urllib.parse import urlsplit
 import webbrowser
 
-from .engine import FRAME_HEIGHT, FRAME_WIDTH, FlyEngine, decode_frame
+from .engine import FRAME_HEIGHT, FRAME_WIDTH, PAM11_CURRENT_MV, FlyEngine, decode_frame
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,10 +25,11 @@ def atomic_json(path, data):
 
 
 class Experiment:
-    def __init__(self, run_dir, *, neural_ms=50.0, fresh=False, frozen=False, factory=FlyEngine, verifier=None):
+    def __init__(self, run_dir, *, neural_ms=50.0, fresh=False, frozen=False, video_reward=True, factory=FlyEngine, verifier=None):
         self.run_dir = Path(run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.neural_ms, self.fresh, self.frozen = neural_ms, fresh, frozen
+        self.video_reward = video_reward
         self.factory, self.verifier = factory, verifier
         self.condition = threading.Condition()
         self.pending = None
@@ -112,8 +113,9 @@ class Experiment:
                 b.restore(checkpoint)
                 b.weights_frozen = self.frozen
                 # No queued stimulus is replayed after a restart.
-            model = {**verified, "backend": "Python / C++17", "dt_ms": b.dt, "plastic_edges": len(b.circuit["edges"]), "retinal_inputs": len(b.retina) + len(b.r8), "sample_cells": self.engine.sample_cells, "frozen": self.frozen, "physiology_validated": False}
-            atomic_json(self.run_dir / "provenance.json", {"model": model, "upstream": json.loads((ROOT / "flywirehead/upstream.json").read_text()), "neural_ms_per_frame": self.neural_ms, "frame_source": "90x160 RGBA captured from the displayed short; flipped to RGB", "reward": "Manual 200 ms / 20 mV-equivalent PAM11 stimulation only", "animation": "Artistic mapping of measured PAM11, MN9/DNp09 and DNa02 spike rates", "started_at": time.time()})
+            reward = {"video_enabled": self.video_reward, "target": "PAM11", "cells": len(b.circuit["reward"]), "current_mv_equivalent": PAM11_CURRENT_MV, "trigger": "Each accepted playing-video observation", "manual_pulse_ms": 200, "overlap": "Manual and video current do not stack"}
+            model = {**verified, "backend": "Python / C++17", "dt_ms": b.dt, "plastic_edges": len(b.circuit["edges"]), "retinal_inputs": len(b.retina) + len(b.r8), "sample_cells": self.engine.sample_cells, "frozen": self.frozen, "reward": reward, "physiology_validated": False}
+            atomic_json(self.run_dir / "provenance.json", {"model": model, "upstream": json.loads((ROOT / "flywirehead/upstream.json").read_text()), "neural_ms_per_frame": self.neural_ms, "frame_source": "90x160 RGBA captured from the displayed short; flipped to RGB", "reward": reward, "animation": "Artistic mapping of measured PAM11, MN9/DNp09 and DNa02 spike rates; choreographed foreleg swipe", "started_at": time.time()})
             with self.condition:
                 self.state.update(phase="ready", message="Waiting for screen pixels", model=model, restored_ms=b.sim_ms)
             print(f"Brain ready: {b.n:,} neurons, {len(b.post):,} connections; {b.sim_ms:.1f} ms simulated", flush=True)
@@ -139,7 +141,7 @@ class Experiment:
                         frame, received = item
                         if injection:
                             self.engine.stimulate()
-                        result = self.engine.observe(frame, self.neural_ms)
+                        result = self.engine.observe(frame, self.neural_ms, video_reward=self.video_reward)
                         bins = result.pop("bins")
                         raster.extend(bins)
                         history.append({"sim_ms": result["sim_ms"], "pam11_hz": result["pam11_hz"]})
@@ -249,7 +251,7 @@ def serve(args):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         raise SystemExit("This run directory is already in use by another brain process")
-    experiment = Experiment(run_dir, neural_ms=args.neural_ms, fresh=args.fresh, frozen=args.frozen)
+    experiment = Experiment(run_dir, neural_ms=args.neural_ms, fresh=args.fresh, frozen=args.frozen, video_reward=not args.no_video_reward)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), partial(Handler, experiment=experiment))
     experiment.start()
     url = f"http://127.0.0.1:{server.server_port}"

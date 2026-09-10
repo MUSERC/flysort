@@ -51,3 +51,11 @@ The animation now maps those measured motor rates through a bounded response wit
 ## Synchronized foreleg swipe — 2026-09-11
 
 The phone transition and front right leg now share one presentation timeline. All 22 JavaScript checks pass, including identical stroke/slide easing, automatic and manual advancement, holding during loading/pause/buffering/errors, and reduced-motion behavior. A sweep of 1,001 poses checks a fixed shoulder, constant segment lengths, finite coordinates, and continuous joint movement. This caught and corrected a joint-direction flip during development. The local browser rendered the raised foreleg during a manual skip while neural telemetry continued updating. The gesture changes presentation only; numerical dynamics and the three-second media cutoff remain unchanged.
+
+## Automatic video-linked PAM11 drive — 2026-09-11
+
+Each accepted playing-video observation now injects 20 mV-equivalent current into the 15 annotated PAM11 cells. The existing graph, visual projection, and numerical kernel are unchanged. From the same checkpoint and with the same 200 ms white input, the control produced **0 PAM11 spikes**, while automatic video stimulation produced **261 spikes (87 Hz per neuron)**. It exactly reproduced the existing manual pulse's spike hash. A further 50 ms video observation produced 70 PAM11 spikes without a queued manual pulse. Disabling video reward removed the injected current, and overlapping manual stimulation did not double it.
+
+All **7 Python checks**, including the full-graph assays and real HTTP worker with automatic reward both enabled and disabled, passed. They verify received pixels, delivered current, waiting without frames, pause, manual pulses, and checkpoint restore. All **23 JavaScript checks** passed, including immediate observation gating on buffering and seeking.
+
+The local app restarted from its saved state at 413.40 s neural time. Live insect footage produced **70 PAM11 spikes in 50 ms (93.33 Hz)** with automatic drive and no manual pulse. Pausing held sample sequence and neural time unchanged; resuming produced 66 PAM11 spikes (88 Hz) with video stimulation restored. A copy of the pre-change checkpoint is retained locally as `runs/local/brain-before-video-reward.npz`. These are numerical stimulation checks, not evidence of pleasure or learned preference.

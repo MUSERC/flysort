@@ -19,6 +19,7 @@ def main():
     run.add_argument("--neural-ms", type=float, default=50.0, help="Simulated milliseconds per submitted frame (0.1–500)")
     run.add_argument("--fresh", action="store_true", help="Start without restoring the existing checkpoint")
     run.add_argument("--frozen", action="store_true", help="Freeze plastic synaptic weights for a control run")
+    run.add_argument("--no-video-reward", action="store_true", help="Disable automatic PAM11 stimulation while watching, for a control run")
     args = parser.parse_args()
     os.environ["FLYWIREHEAD_DATA"] = str(args.data.resolve())
     if args.command == "prepare":
