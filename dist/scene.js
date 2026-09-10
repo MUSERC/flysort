@@ -152,17 +152,25 @@ export function createLab(canvas, onReady) {
   }
   updateTether();
 
-  // Portrait terminal physically lives in the same scene as the fly.
-  const terminal = new THREE.Group(); terminal.position.set(1.78, 2.34, -.4); terminal.rotation.set(.08, -.68, 0); group.add(terminal);
-  box([1.88, 3.37, .19], [0, 0, 0], material(0x17232b, { roughness: .3, metalness: .8 }), terminal);
-  box([1.76, 3.25, .05], [0, 0, .12], material(0x010305), terminal);
-  box([.95, .016, .013], [0, -1.68, .1], cyan, terminal);
-  box([.34, .038, .027], [0, 1.55, .167], dark, terminal);
-  orb([.026, .026, .014], [.28, 1.55, .176], glow(0x527960), terminal, 1);
-  rod([1.78, .49, -.48], [1.78, 1.03, -.48], .07, metal);
-  const terminalBase = box([1.36, .08, .82], [1.78, .49, -.32], metal);
-  terminalBase.rotation.y = terminal.rotation.y;
-  label('V I T R E O U S   /   0 1', .73, .07, [0, -1.625, .153], terminal, '#748e80', null, 22);
+  // A standalone phone: rounded aluminum edge, black glass, and ordinary controls.
+  function phoneOutline(width, height, radius) {
+    const x = width / 2, y = height / 2, r = radius, shape = new THREE.Shape();
+    shape.moveTo(-x + r, -y); shape.lineTo(x - r, -y);
+    shape.quadraticCurveTo(x, -y, x, -y + r); shape.lineTo(x, y - r);
+    shape.quadraticCurveTo(x, y, x - r, y); shape.lineTo(-x + r, y);
+    shape.quadraticCurveTo(-x, y, -x, y - r); shape.lineTo(-x, -y + r);
+    shape.quadraticCurveTo(-x, -y, -x + r, -y);
+    return shape;
+  }
+  const terminal = new THREE.Group(); terminal.position.set(1.78, 0, -.4); terminal.rotation.set(.08, -.68, 0); group.add(terminal);
+  const phoneEdge = material(0x677279, { roughness: .26, metalness: .9 });
+  mesh(new THREE.ExtrudeGeometry(phoneOutline(1.8, 3.3, .2), { depth: .1, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: .018, bevelThickness: .018, curveSegments: 12 }), phoneEdge, [0, 0, -.05], terminal);
+  mesh(new THREE.ShapeGeometry(phoneOutline(1.77, 3.27, .19), 12), material(0x030508, { roughness: .16, metalness: .35 }), [0, 0, .07], terminal);
+  box([.27, .028, .008], [-.04, 1.53, .078], dark, terminal);
+  orb([.027, .027, .008], [.2, 1.53, .082], material(0x172c3b, { roughness: .08, metalness: .65 }), terminal, 2);
+  box([.36, .018, .006], [0, -1.53, .078], material(0xb9c1c5), terminal);
+  box([.023, .3, .058], [.919, .61, 0], phoneEdge, terminal);
+  for (const y of [.72, .31]) box([.023, .24, .058], [-.919, y, 0], phoneEdge, terminal);
 
   // Signal box, cables, and a conspicuously untouched piece of fruit.
   const boxGroup = new THREE.Group(); boxGroup.position.set(3.15, .8, 1.65); boxGroup.rotation.y = -.16; group.add(boxGroup);
@@ -171,11 +179,11 @@ export function createLab(canvas, onReady) {
   for (let i = 0; i < 5; i++) orb([.022, .022, .015], [-.36 + i * .17, -.24, .392], i % 2 ? cyan : lime, boxGroup, 1);
   // Route the supply around the back of the desk and up the boom; no loose side leads enter the fly.
   wire([[3.1, .62, 1.33], [3.55, .49, .8], [3.3, .49, -1.65], [-1.9, .49, -1.65], [-2.65, .63, -1.1], [-2.65, 3.38, -1.03], [-2.55, 3.51, -1.03], [-.74, 3.51, -1.03], [-.738, 3.51, .2]], .031, dark);
-  wire([[1.7, .63, -.58], [2.4, .48, -.9], [3, .49, .15], [3.15, .65, 1.35]], .019, glow(0x3e827b, .6));
   const fruit = orb([.16, .18, .15], [-3.59, .6, 1.73], material(0x73832d, { flatShading: true }), group, 1); rod([-3.59, .76, 1.73], [-3.55, .84, 1.72], .014, dark);
 
   const feed = createFeed(renderer);
-  const screen = mesh(new THREE.PlaneGeometry(1.62, 2.88), feed.screenMaterial, [0, .015, .156], terminal); screen.castShadow = false;
+  const screen = mesh(new THREE.PlaneGeometry(1.62, 2.88), feed.screenMaterial, [0, 0, .079], terminal); screen.castShadow = false;
+  terminal.position.y += .417 - new THREE.Box3().setFromObject(terminal).min.y;
   // Capture the exact composited portrait display, including swipes and captions.
   const sensoryTarget = new THREE.WebGLRenderTarget(90, 160);
   const sensoryScene = new THREE.Scene();
