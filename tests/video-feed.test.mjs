@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VideoFeed, nextClipIndex, fitVideo } from '../dist/video-feed.js';
+import { VideoFeed, nextClipIndex } from '../dist/video-feed.js';
 
 function fixture(t) {
   const context = new Proxy({}, { get: () => () => {} });
@@ -9,7 +9,7 @@ function fixture(t) {
   t.after(() => { globalThis.document = original; });
   const video = new EventTarget();
   Object.assign(video, { currentTime: 0, readyState: 0, paused: true, ended: false, seeking: false,
-    videoWidth: 640, videoHeight: 360, load() { this.readyState = 0; this.currentTime = 0; },
+    videoWidth: 360, videoHeight: 640, load() { this.readyState = 0; this.currentTime = 0; },
     pause() { this.paused = true; }, async play() { this.paused = false; }, removeAttribute() {} });
   let now = 0;
   const feed = new VideoFeed({ video, now: () => now });
@@ -21,9 +21,21 @@ function fixture(t) {
 test('the final local video wraps to the first', () => {
   assert.equal(nextClipIndex(9, 10), 0); assert.equal(nextClipIndex(0, 10), 1);
 });
-test('wide insect footage stays fully visible and portrait footage fills the phone', () => {
-  assert.deepEqual(fitVideo(1920, 1080), [0, 218.75, 360, 202.5]);
-  assert.deepEqual(fitVideo(1080, 1920), [0, 0, 360, 640]);
+test('each short swipes at three seconds of playback and resets for the next clip', async t => {
+  const { feed, video, loaded } = fixture(t);
+  feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve();
+  video.currentTime = 2.99; feed.render(.5); assert.equal(feed.index, 0);
+  video.currentTime = 3; feed.render(.02); assert.equal(feed.index, 1);
+  assert.equal(feed.observing, false); assert.equal(video.currentTime, 0);
+  loaded(); await Promise.resolve(); video.currentTime = 2.99; feed.render(.5); assert.equal(feed.index, 1);
+  video.currentTime = 3.02; feed.render(.02); assert.equal(feed.index, 0);
+});
+test('pause holds a short at its swipe boundary until playback resumes', async t => {
+  const { feed, video, loaded } = fixture(t);
+  feed.select(0); feed.setPaused(false); loaded(); await Promise.resolve(); feed.render(.5);
+  feed.setPaused(true); video.currentTime = 3; feed.render(.5);
+  assert.equal(feed.index, 0);
+  feed.setPaused(false); await Promise.resolve(); feed.render(.02); assert.equal(feed.index, 1);
 });
 test('only fresh decoded playing video can supply neural input', async t => {
   const { feed, video, loaded, setTime } = fixture(t);

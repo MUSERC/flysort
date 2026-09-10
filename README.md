@@ -15,7 +15,7 @@ uv run flywirehead run
 
 Preparation downloads approximately 1.1 GB, verifies source SHA-256 hashes, retains the full graph, and verifies every graph array against the upstream locks. It is already prepared on the development machine. Data, native build products, and runtime checkpoints stay local and are excluded from Git. Allow several GB of disk space; 16 GB RAM is recommended.
 
-The video command downloads **10 real fly and insect clips**, about **5 minutes 53 seconds** per loop. Prepared H.264/AAC videos occupy about 25 MB in `dist/media/`; the original downloads stay in `runs/video-downloads/`. Both are excluded from Git. The source list, titles, creator links, durations, and prepared-file hashes are committed. Once prepared, video playback works offline. Rerun the command to restore missing media; use `--skip-download` to prepare it from the existing download cache.
+The video command downloads **10 native portrait YouTube Shorts about flies and insects**. Each plays for **3 seconds** before swiping to the next, making a roughly 30-second loop. The downloader verifies that each source is portrait and prepares an exact **360×640 (9:16)** H.264/AAC MP4 in `dist/media/`; the original downloads stay in `runs/video-downloads/`. Both are excluded from Git. The source list, titles, creator links, dimensions, durations, and prepared-file hashes are committed. Once prepared, video playback works offline. Rerun the command to restore missing media; use `--skip-download` to prepare it from the existing download cache.
 
 `run` opens **http://127.0.0.1:4173**. On macOS, double-click `run.command` after setup. The local Python process must stay running. This is a local application; the older hosted static demo does not run the new brain.
 
@@ -31,14 +31,14 @@ python3.12 -m venv .venv
 
 ## What actually runs
 
-1. An HTML video element plays the downloaded insect playlist. Its decoded frames are drawn onto the portrait phone canvas, which Three.js displays. Wide footage remains fully visible with a blurred background from the same frame; clip changes slide vertically.
+1. An HTML video element plays the downloaded insect playlist. Its decoded frames fill the portrait phone canvas edge to edge, which Three.js displays. Clip changes slide vertically; there is no blurred filler or letterboxing added by the player.
 2. The browser reads that composited screen into a **90×160 RGBA** frame. Python flips WebGL's rows and removes alpha. The most recent accepted screen image is saved as `runs/local/latest-input.png`.
 3. The upstream inferred visual projection stimulates **3,335 R1–R6 inputs and 811 R8 inputs** from the image's luminance and color.
 4. Python calls the compiled C++17 kernel through `ctypes`. It integrates the full retained spiking graph in **0.1 ms** steps.
 5. Each accepted frame advances **50 ms of neural time** by default. The interface explicitly separates wall-clock exposure, simulated brain time, and compute time. It samples the video; it does not claim frame-for-frame biological real-time playback.
 6. Actual network spike counts, mean PAM11/KC firing rates, and 10 ms bins for 96 fixed identified cells return to the observation window. Missing/disconnected engines display no measurements; there is no fake fallback.
 
-The playlist automatically advances when each video ends and wraps after the final clip. Its titles and creator links come from the downloaded metadata. The subject is compelled to receive whichever clip is on screen; the feed's order and playback timing are presentation controls, not learned behavior. Loading, failed, paused, or stalled playback supplies no new observations; the most recent valid measurements remain visible.
+The playlist automatically advances after three seconds of actual media playback and wraps after the final clip. Pausing, buffering, or hiding the window holds that timer. An early video end also advances to the next clip. Its titles and creator links come from the downloaded metadata. The subject is compelled to receive whichever clip is on screen; the feed's order and playback timing are presentation controls, not learned behavior. Loading, failed, paused, or stalled playback supplies no new observations; the most recent valid measurements remain visible.
 
 ## Reward, learning, and movement
 

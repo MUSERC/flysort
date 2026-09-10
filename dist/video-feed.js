@@ -1,9 +1,6 @@
 // Actual local media. The same composited canvas supplies the phone and retina.
+export const SHORT_SECONDS = 3;
 export function nextClipIndex(index, length) { return length ? (index + 1) % length : 0; }
-export function fitVideo(width, height, targetWidth = 360, targetHeight = 640) {
-  const scale = Math.min(targetWidth / width, targetHeight / height);
-  return [(targetWidth - width * scale) / 2, (targetHeight - height * scale) / 2, width * scale, height * scale];
-}
 
 export class VideoFeed {
   constructor({ reducedMotion = false, onChange = () => {}, video = document.createElement('video'), now = () => performance.now() } = {}) {
@@ -29,7 +26,7 @@ export class VideoFeed {
       const response = await fetch('./media/playlist.json', { cache: 'no-store' });
       if (!response.ok) throw new Error('Download the insect playlist first.');
       const data = await response.json();
-      this.clips = data.clips.filter(c => /^[\w-]{11}$/.test(c.id) && c.file === `${c.id}.mp4` && typeof c.title === 'string');
+      this.clips = data.clips.filter(c => /^[\w-]{11}$/.test(c.id) && c.file === `${c.id}.mp4` && typeof c.title === 'string' && c.width === 360 && c.height === 640);
       if (!this.clips.length) throw new Error('No local insect videos are available.');
       this.select(0);
     } catch (error) {
@@ -69,6 +66,8 @@ export class VideoFeed {
     if (!this.ready) return;
     const v = this.video, c = this.ctx;
     if (v.currentTime !== this.lastTime) { this.lastTime = v.currentTime; this.lastFrameAt = this.now(); }
+    // Use played media time so pause, buffering, and hidden tabs never consume a turn.
+    if (this.observing && v.currentTime >= SHORT_SECONDS) { this.next(true); return; }
     if (!this.counted) { this.counted = true; this.consumed++; this.onChange(); }
     this.transition = Math.min(1, this.transition + dt / .48);
     const p = this.reducedMotion || !this.hasPrevious ? 1 : 1 - (1 - this.transition) ** 3;
@@ -76,11 +75,7 @@ export class VideoFeed {
     if (p < 1) c.drawImage(this.previous, 0, -p * 640);
     c.save(); c.translate(0, (1 - p) * 640);
     c.beginPath(); c.rect(0, 0, 360, 640); c.clip();
-    // Keep the whole insect visible; wider footage gets a soft background from itself.
-    const cover = Math.max(360 / v.videoWidth, 640 / v.videoHeight);
-    c.filter = 'blur(20px) brightness(0.38)';
-    c.drawImage(v, (360 - v.videoWidth * cover) / 2, (640 - v.videoHeight * cover) / 2, v.videoWidth * cover, v.videoHeight * cover);
-    c.filter = 'none'; c.drawImage(v, ...fitVideo(v.videoWidth, v.videoHeight)); c.restore();
+    c.drawImage(v, 0, 0, 360, 640); c.restore();
   }
   stop() { this.video.pause(); this.video.removeAttribute('src'); this.video.load(); }
 }

@@ -1,6 +1,6 @@
 import { createLab } from './scene.js';
 import { createPlayback, createFrameClock } from './simulation.js';
-import { VideoFeed } from './video-feed.js';
+import { VideoFeed, SHORT_SECONDS } from './video-feed.js';
 import { BrainClient } from './backend.js';
 
 const $ = selector => document.querySelector(selector);
@@ -50,10 +50,10 @@ function updateLabels() {
   const clip = feed.current, t = status?.telemetry, ready = status?.phase === 'ready';
   $('#clip-label').textContent = clip?.title || 'LOCAL INSECT SHORTS';
   $('#clip-label').title = clip?.title || '';
-  $('#feed-status').textContent = feed.error || `${feed.clips.length} LOCAL VIDEOS · LOOPING`;
+  $('#feed-status').textContent = feed.error || `${feed.clips.length} VERTICAL SHORTS · SWIPE EVERY ${SHORT_SECONDS}s`;
   $('#feed-status').classList.toggle('feed-error', Boolean(feed.error));
   $('#source-link').hidden = !clip;
-  if (clip) { $('#source-link').href = `https://www.youtube.com/watch?v=${clip.id}`; $('#source-link').textContent = `${clip.channel || 'Original video'} ↗`; }
+  if (clip) { $('#source-link').href = `https://www.youtube.com/shorts/${clip.id}`; $('#source-link').textContent = `${clip.channel || 'Original video'} ↗`; }
   $('#fly-thought').textContent = t ? `${t.total_spikes.toLocaleString()} spikes / sample` : 'waiting for neural output';
   $('#short-number').textContent = String(feed.consumed).padStart(2, '0');
   $('#consumed').innerHTML = `${String(feed.consumed).padStart(2, '0')} <small>shorts presented</small>`;
@@ -61,7 +61,7 @@ function updateLabels() {
   $('#session-time').textContent = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   $('#exposure').textContent = `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
   const videoTime = n => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
-  $('#clip-time').textContent = `${videoTime(feed.video.currentTime || 0)} / ${videoTime(Number.isFinite(feed.video.duration) ? feed.video.duration : 0)}`;
+  $('#clip-time').textContent = `${videoTime(feed.video.currentTime || 0)} / ${videoTime(Math.min(SHORT_SECONDS, Number.isFinite(feed.video.duration) ? feed.video.duration : SHORT_SECONDS))}`;
   $('#dopamine-value').textContent = t ? t.pam11_hz.toFixed(1) : '—';
   $('#dopamine-meter').style.width = `${t ? Math.min(100, t.pam11_hz) : 0}%`;
   $('#dopamine-change').textContent = t ? `${t.pam11_spikes} spikes` : 'NO DATA';

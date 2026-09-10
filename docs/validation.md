@@ -27,3 +27,9 @@ In the local browser, actual moving insect footage rendered on the 3D phone and 
 The backend's saved 90×160 `latest-input.png` showed the same insect footage and portrait composition as the phone. Pausing held neural time at 193.20 seconds and preserved the input and spike hashes across subsequent status checks. Resuming advanced both video time and neural time, with new input hashes and measured spikes. Failed, loading, stale, or paused media is gated from the sensory stream; there is no synthetic-video fallback.
 
 All 13 JavaScript checks passed, covering the retained clock/bridge behavior plus local-media cycling, paused manual changes, full-frame aspect fitting, stale-frame rejection, and skipping failed media. The numerical backend was unchanged, so the full-network assays above were not repeated for this presentation change. WebMCP status, pause, next-short, and resume actions were exercised successfully.
+
+## Portrait Shorts with three-second swipes — 2026-09-11
+
+The landscape playlist was replaced with ten native portrait YouTube Shorts. FFprobe verified all downloaded sources at 720×1280 and every prepared file at 360×640 with square pixels. All ten were visually checked. The downloader rejects landscape sources, and the player accepts only the prepared 9:16 dimensions, drawing directly to the phone without blurred filler.
+
+The feed now advances at three seconds of played media time and wraps after ten clips. All 14 JavaScript checks passed, including just-before/at-three-second boundaries, timer reset for the next clip, and pausing at the boundary without advancing until resumed. In the local browser, the phone displayed full-height footage, the eighth short was playing at 23 seconds of exposure, and neural measurements continued updating. No browser errors or warnings appeared. The numerical backend and visual-input transport were unchanged.
