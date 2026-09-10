@@ -2,7 +2,7 @@
 
 **Born to fly. Forced to scroll.**
 
-![A wired fly watching insect Shorts on a phone, with live network activity and a neural spike raster.](docs/assets/fly-wirehead.png)
+![A wired fly watching insect Shorts on a phone in a bright garden, with live dopamine-neuron activity and fly spike counts.](docs/assets/fly-wirehead.png)
 
 A fly-connectome simulation watching an endless feed of insect videos. **166,700 neurons. 25.6 million connections. A new Short every three seconds.**
 
