@@ -63,8 +63,6 @@ function updateLabels() {
   $('#neural-value').textContent = t ? compactRate(t.network_spikes_per_second) : '—';
   $('#spike-value').textContent = t ? t.total_spikes.toLocaleString() : '—';
   $('#sample-label').textContent = t ? `in ${t.interval_ms} ms of neural time` : 'Waiting for a sample';
-  $('#brain-time').textContent = t ? `${(t.sim_ms / 1000).toFixed(2)}s simulated` : 'Waiting for neural input';
-  $('#timing-detail').textContent = t ? `${(t.compute_seconds * 1000).toFixed(0)} ms compute / sample` : 'SIMULATED TIME';
   const seconds = Math.floor(state.time), minutes = Math.floor(seconds / 60);
   $('#session-time').textContent = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   $('#top-state').textContent = `BRAIN ${connection}`;
