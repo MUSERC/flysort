@@ -1,42 +1,43 @@
 import { createLab } from './scene.js';
-import { clips, createPlayback, createFrameClock } from './simulation.js';
+import { createPlayback, createFrameClock } from './simulation.js';
+import { VideoFeed } from './video-feed.js';
 import { BrainClient } from './backend.js';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#scene'), reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let lab, view = 0, messageTimer, status = null, connection = 'CONNECTING', lastSequence = -1, commandPending = false;
-let soundOn = false, audioContext, master, filter;
+let lab, view = 0, messageTimer, status = null, connection = 'CONNECTING', commandPending = false;
+let soundOn = false;
 let sceneFailed = false, sceneRendered = false;
-const playback = createPlayback({ reducedMotion, onNext(index) { lab?.nextClip(index); playTone(340 + index * 55, .12); } });
+const playback = createPlayback();
 const state = playback.state;
-try { lab = createLab(canvas); }
+const feed = new VideoFeed({ reducedMotion, onChange: updateLabels });
+try { lab = createLab(canvas, feed.canvas); }
 catch (error) { sceneFailed = true; console.error(error); $('#scene-error').hidden = false; }
 const client = new BrainClient({
   reducedMotion,
-  captureFrame: () => sceneRendered ? lab?.captureFrame() : null,
+  captureFrame: () => sceneRendered && feed.observing ? lab?.captureFrame() : null,
   onStatus(data) {
     status = data;
     connection = data.phase === 'ready' ? (data.paused ? 'PAUSED' : 'CONNECTED') : data.phase.toUpperCase();
     playback.setPaused(sceneFailed || data.phase !== 'ready' || data.paused);
+    feed.setPaused(sceneFailed || data.phase !== 'ready' || data.paused || document.hidden);
     if (data.telemetry) {
       state.pam11Hz = data.telemetry.pam11_hz;
       state.motorHz = data.telemetry.motor_hz;
       state.turnHz = data.telemetry.turn_hz;
-      if (data.sequence !== lastSequence && data.telemetry.stimulus_ms > 0) playTone(520, .08);
-      lastSequence = data.sequence;
     }
     $('#engine-message').textContent = sceneFailed ? 'Visual input suspended — reload to restart the 3D scene.' : data.phase === 'error' ? `${data.message}. Run uv run flywirehead prepare, then restart.` : data.message;
     updateLabels(); drawTelemetry(); syncAudio();
   },
   onError(error) {
-    status = null; connection = 'DISCONNECTED'; playback.setPaused(true);
+    status = null; connection = 'DISCONNECTED'; playback.setPaused(true); feed.setPaused(true);
     state.pam11Hz = state.motorHz = state.turnHz = 0;
     $('#engine-message').textContent = error.message;
     updateLabels(); drawTelemetry(); syncAudio();
   }
 });
 function showMessage(text) { clearTimeout(messageTimer); $('#scene-message').textContent = text; $('#scene-message').classList.add('visible'); messageTimer = setTimeout(() => $('#scene-message').classList.remove('visible'), 2600); }
-function nextShort() { const changed = playback.next(); updateLabels(); return changed; }
+function nextShort() { const changed = feed.next(); updateLabels(); return changed; }
 async function command(action) {
   if (commandPending) return false;
   commandPending = true;
@@ -46,15 +47,21 @@ async function command(action) {
 }
 function changeCamera() { view = (view + 1) % 3; lab?.setView(view); $('.scene-view').innerHTML = `${['PERSPECTIVE', 'SPECIMEN CLOSEUP', 'FEED VIEW'][view]} <span>0${view + 1} / 03</span>`; }
 function updateLabels() {
-  const clip = clips[state.clipIndex], t = status?.telemetry, ready = status?.phase === 'ready';
-  $('#clip-label').textContent = clip.category;
+  const clip = feed.current, t = status?.telemetry, ready = status?.phase === 'ready';
+  $('#clip-label').textContent = clip?.title || 'LOCAL INSECT SHORTS';
+  $('#clip-label').title = clip?.title || '';
+  $('#feed-status').textContent = feed.error || `${feed.clips.length} LOCAL VIDEOS · LOOPING`;
+  $('#feed-status').classList.toggle('feed-error', Boolean(feed.error));
+  $('#source-link').hidden = !clip;
+  if (clip) { $('#source-link').href = `https://www.youtube.com/watch?v=${clip.id}`; $('#source-link').textContent = `${clip.channel || 'Original video'} ↗`; }
   $('#fly-thought').textContent = t ? `${t.total_spikes.toLocaleString()} spikes / sample` : 'waiting for neural output';
-  $('#short-number').textContent = String(state.consumed).padStart(2, '0');
-  $('#consumed').innerHTML = `${String(state.consumed).padStart(2, '0')} <small>shorts presented</small>`;
+  $('#short-number').textContent = String(feed.consumed).padStart(2, '0');
+  $('#consumed').innerHTML = `${String(feed.consumed).padStart(2, '0')} <small>shorts presented</small>`;
   const seconds = Math.floor(state.time), minutes = Math.floor(seconds / 60);
   $('#session-time').textContent = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   $('#exposure').textContent = `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
-  $('#clip-time').textContent = `00:${String(Math.floor(state.clipElapsed)).padStart(2, '0')} / 00:${clip.duration}`;
+  const videoTime = n => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
+  $('#clip-time').textContent = `${videoTime(feed.video.currentTime || 0)} / ${videoTime(Number.isFinite(feed.video.duration) ? feed.video.duration : 0)}`;
   $('#dopamine-value').textContent = t ? t.pam11_hz.toFixed(1) : '—';
   $('#dopamine-meter').style.width = `${t ? Math.min(100, t.pam11_hz) : 0}%`;
   $('#dopamine-change').textContent = t ? `${t.pam11_spikes} spikes` : 'NO DATA';
@@ -62,14 +69,14 @@ function updateLabels() {
   $('#attention-value').innerHTML = t ? `${t.kc_hz.toFixed(2)} <small>Hz</small>` : '—';
   $('#brainrot-value').textContent = t ? t.memory.changed_edges.toLocaleString() : '—';
   $('#brain-time').textContent = t ? `${(t.sim_ms / 1000).toFixed(2)} s` : status?.restored_ms ? `${(status.restored_ms / 1000).toFixed(2)} s` : '—';
-  $('#subject-status').textContent = sceneFailed ? 'Scene stopped · reload to retry' : ready ? (status.paused ? (status.busy ? 'Finishing current step' : 'Paused') : status.busy ? 'Integrating neurons' : t ? 'Awaiting next frame' : 'Waiting for pixels') : connection.toLowerCase();
+  $('#subject-status').textContent = sceneFailed ? 'Scene stopped · reload to retry' : feed.error ? 'Video unavailable' : ready ? (status.paused ? (status.busy ? 'Finishing current step' : 'Paused') : !feed.observing ? 'Waiting for video' : status.busy ? 'Integrating neurons' : 'Watching insect shorts') : connection.toLowerCase();
   $('#top-state').textContent = `BRAIN ${connection}`;
   $('#link-label').textContent = ready ? 'FULL CONNECTOME LOADED' : 'LOCAL BRAIN REQUIRED';
   $('#link-detail').textContent = ready ? `${status.model.neurons.toLocaleString()} NEURONS / ${status.model.retinal_inputs.toLocaleString()} VISUAL INPUTS` : 'PYTHON + C++ / NO SYNTHETIC TELEMETRY';
-  $('#pause-button').textContent = state.paused ? '▶' : 'Ⅱ';
-  $('#pause-button').setAttribute('aria-label', state.paused ? 'Resume experiment' : 'Pause experiment');
+  $('#pause-button').textContent = status?.paused || feed.error ? '▶' : 'Ⅱ';
+  $('#pause-button').setAttribute('aria-label', status?.paused || feed.error ? 'Resume experiment' : 'Pause experiment');
   $('#pause-button').disabled = !ready;
-  $('#stimulate-button').disabled = !ready || status.paused;
+  $('#stimulate-button').disabled = !ready || status.paused || !feed.observing;
   $('#save-button').disabled = !ready;
   $('#checkpoint-label').textContent = status?.checkpoint ? `SAVED ${new Date(status.checkpoint.saved_at * 1000).toLocaleTimeString()}` : 'SAVES ON EXIT';
   $('#timing-detail').textContent = t ? `${t.interval_ms} ms neural time / ${(t.compute_seconds * 1000).toFixed(0)} ms compute` : 'Waiting for a measured sample';
@@ -77,7 +84,8 @@ function updateLabels() {
   document.body.classList.toggle('disconnected', !ready);
 }
 $('#next-button').addEventListener('click', nextShort);
-$('#pause-button').addEventListener('click', () => command(state.paused ? 'resume' : 'pause'));
+function togglePause() { if (feed.error && !status?.paused) { feed.error = ''; void feed.play(); } else void command(status?.paused ? 'resume' : 'pause'); }
+$('#pause-button').addEventListener('click', togglePause);
 $('#stimulate-button').addEventListener('click', () => command('stimulate'));
 $('#save-button').addEventListener('click', () => command('save'));
 $('#camera-button').addEventListener('click', changeCamera);
@@ -86,7 +94,7 @@ $('#about-dialog').addEventListener('click', event => { const r = event.currentT
 $('#fullscreen-button').addEventListener('click', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else if ($('#scene-wrap').requestFullscreen) await $('#scene-wrap').requestFullscreen(); else showMessage('Fullscreen unavailable in this browser'); } catch { showMessage('Fullscreen unavailable in this view'); } });
 document.addEventListener('keydown', event => {
   if ($('#about-dialog').open || /INPUT|TEXTAREA|SELECT|BUTTON|A/.test(document.activeElement?.tagName)) return;
-  if (event.code === 'Space') { event.preventDefault(); if (!event.repeat) void command(state.paused ? 'resume' : 'pause'); }
+  if (event.code === 'Space') { event.preventDefault(); if (!event.repeat) togglePause(); }
   if (event.code === 'ArrowDown' || event.code === 'ArrowUp') { event.preventDefault(); if (!event.repeat) nextShort(); }
 });
 let pointer = null, wheelAt = 0;
@@ -96,17 +104,17 @@ canvas.addEventListener('pointerup', e => { if (!pointer || pointer.id !== e.poi
 canvas.addEventListener('pointercancel', () => pointer = null);
 canvas.addEventListener('lostpointercapture', () => pointer = null);
 canvas.addEventListener('wheel', e => { e.preventDefault(); if (Math.abs(e.deltaY) > 8 && performance.now() - wheelAt > 800) { nextShort(); wheelAt = performance.now(); } }, { passive: false });
-function syncAudio() { if (audioContext && master) master.gain.setTargetAtTime(soundOn && !state.paused && !document.hidden ? .027 : 0, audioContext.currentTime, .18); }
-function playTone(frequency, duration) { if (!soundOn || !audioContext || state.paused) return; const tone = audioContext.createOscillator(), gain = audioContext.createGain(); tone.frequency.setValueAtTime(frequency, audioContext.currentTime); gain.gain.setValueAtTime(.035, audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(.001, audioContext.currentTime + duration); tone.connect(gain); gain.connect(audioContext.destination); tone.start(); tone.stop(audioContext.currentTime + duration); }
-$('#sound-button').addEventListener('click', async () => {
-  try {
-    if (!audioContext) { const Audio = window.AudioContext || window.webkitAudioContext; audioContext = new Audio(); const drone = audioContext.createOscillator(); filter = audioContext.createBiquadFilter(); master = audioContext.createGain(); drone.type = 'sawtooth'; drone.frequency.value = 57; filter.type = 'lowpass'; filter.frequency.value = 165; master.gain.value = 0; drone.connect(filter); filter.connect(master); master.connect(audioContext.destination); drone.start(); }
-    await audioContext.resume(); soundOn = !soundOn; syncAudio();
-    $('#sound-button').innerHTML = soundOn ? '♩' : '♩<span class="sound-slash">/</span>';
-    $('#sound-button').setAttribute('aria-label', soundOn ? 'Turn sound off' : 'Turn sound on'); $('#sound-button').setAttribute('aria-pressed', String(soundOn));
-  } catch { showMessage('Audio unavailable in this browser'); }
+function syncAudio() { feed.setMuted(!soundOn || state.paused || document.hidden); }
+$('#sound-button').addEventListener('click', () => {
+  soundOn = !soundOn; syncAudio();
+  $('#sound-button').innerHTML = soundOn ? '♩' : '♩<span class="sound-slash">/</span>';
+  $('#sound-button').setAttribute('aria-label', soundOn ? 'Turn sound off' : 'Turn sound on');
+  $('#sound-button').setAttribute('aria-pressed', String(soundOn));
 });
-document.addEventListener('visibilitychange', syncAudio);
+document.addEventListener('visibilitychange', () => {
+  feed.setPaused(sceneFailed || status?.phase !== 'ready' || status?.paused || document.hidden);
+  syncAudio();
+});
 function contextFor(element) { const rect = element.getBoundingClientRect(), dpr = Math.min(devicePixelRatio, 2); const w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr); if (element.width !== w || element.height !== h) { element.width = w; element.height = h; } const ctx = element.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { ctx, w: rect.width, h: rect.height }; }
 function drawTelemetry() {
   const { ctx: c, w, h } = contextFor($('#dopamine-chart'));
@@ -132,12 +140,14 @@ function frame(now) {
   if (!document.hidden) {
     sceneRendered = false;
     try {
+      feed.render(dt);
+      playback.setPaused(sceneFailed || status?.phase !== 'ready' || status?.paused || !feed.observing);
       playback.tick(dt); lab.render(state.time, dt, state);
       sceneRendered = true;
       hudClock += dt; if (hudClock > .2) { hudClock = 0; updateLabels(); }
-      if (filter && soundOn) filter.frequency.setTargetAtTime(150 + Math.min(600, state.pam11Hz * 7), audioContext.currentTime, .2);
+
     } catch (error) {
-      console.error(error); sceneFailed = true; sceneRendered = false; playback.setPaused(true);
+      console.error(error); sceneFailed = true; sceneRendered = false; playback.setPaused(true); feed.setPaused(true);
       $('#scene-error').textContent = 'The 3D scene stopped. Visual input is suspended. Reload to try again.';
       $('#scene-error').hidden = false;
       updateLabels(); syncAudio();
@@ -146,8 +156,8 @@ function frame(now) {
   }
   requestAnimationFrame(frame);
 }
-updateLabels(); drawTelemetry(); requestAnimationFrame(frame); client.start();
-window.addEventListener('pagehide', () => client.stop(), { once: true });
+updateLabels(); drawTelemetry(); requestAnimationFrame(frame); client.start(); void feed.load();
+window.addEventListener('pagehide', () => { client.stop(); feed.stop(); }, { once: true });
 
 const context = document.modelContext;
 if (context?.registerTool) {
@@ -155,7 +165,7 @@ if (context?.registerTool) {
   try { Promise.resolve(context.registerTool({ name: 'control_fly_experiment', title: 'Control local fly brain', description: 'Read the measured neural state, pause or resume, change the short, stimulate PAM11, or save the local brain.', inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['status', 'pause', 'resume', 'next_short', 'stimulate', 'save'] } }, required: ['action'], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, async execute(input) {
     if (!input || Object.keys(input).length !== 1 || !['status', 'pause', 'resume', 'next_short', 'stimulate', 'save'].includes(input.action)) throw new TypeError('Invalid action');
     let applied = true; if (input.action === 'next_short') applied = nextShort(); else if (input.action !== 'status') { await client.action(input.action); }
-    return { applied, connection, paused: state.paused, clip: clips[state.clipIndex].category, telemetry: status?.telemetry ?? null };
+    return { applied, connection, paused: state.paused, clip: feed.current?.title ?? null, telemetry: status?.telemetry ?? null };
   } }, { signal: lifecycle.signal })).catch(console.warn); } catch (error) { console.warn(error); }
   window.addEventListener('pagehide', () => lifecycle.abort(), { once: true });
 }

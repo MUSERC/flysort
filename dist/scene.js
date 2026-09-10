@@ -1,11 +1,10 @@
 import * as THREE from 'three';
-import { clips } from './simulation.js';
 
 const C = { lime: 0xc4f86a, cyan: 0x4be4d2, pink: 0xec527e };
 const seed = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const vec = (p) => new THREE.Vector3(...p);
 
-export function createLab(canvas, onReady) {
+export function createLab(canvas, feedCanvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
   renderer.setClearColor(0x080e13);
@@ -181,15 +180,18 @@ export function createLab(canvas, onReady) {
   wire([[3.1, .62, 1.33], [3.55, .49, .8], [3.3, .49, -1.65], [-1.9, .49, -1.65], [-2.65, .63, -1.1], [-2.65, 3.38, -1.03], [-2.55, 3.51, -1.03], [-.74, 3.51, -1.03], [-.738, 3.51, .2]], .031, dark);
   const fruit = orb([.16, .18, .15], [-3.59, .6, 1.73], material(0x73832d, { flatShading: true }), group, 1); rod([-3.59, .76, 1.73], [-3.55, .84, 1.72], .014, dark);
 
-  const feed = createFeed(renderer);
-  const screen = mesh(new THREE.PlaneGeometry(1.62, 2.88), feed.screenMaterial, [0, 0, .079], terminal); screen.castShadow = false;
+  const feedTexture = new THREE.CanvasTexture(feedCanvas);
+  feedTexture.colorSpace = THREE.SRGBColorSpace;
+  const screenMaterial = new THREE.MeshBasicMaterial({ map: feedTexture, toneMapped: false });
+  const screen = mesh(new THREE.PlaneGeometry(1.62, 2.88), screenMaterial, [0, 0, .079], terminal); screen.castShadow = false;
   terminal.position.y += .417 - new THREE.Box3().setFromObject(terminal).min.y;
-  // Capture the exact composited portrait display, including swipes and captions.
+  // Capture the same composited portrait display, including the swipe transition.
   const sensoryTarget = new THREE.WebGLRenderTarget(90, 160);
+  sensoryTarget.texture.colorSpace = THREE.SRGBColorSpace;
   const sensoryScene = new THREE.Scene();
   const sensoryCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 2);
   sensoryCamera.position.z = 1;
-  sensoryScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), feed.screenMaterial));
+  sensoryScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), screenMaterial));
   const sensoryPixels = new Uint8Array(90 * 160 * 4);
   const dustGeo = new THREE.BufferGeometry(), dustPos = new Float32Array(90 * 3);
   for (let i = 0; i < 90; i++) { dustPos[i * 3] = seed(i + 600) * 10 - 5; dustPos[i * 3 + 1] = seed(i + 700) * 6; dustPos[i * 3 + 2] = seed(i + 900) * 8 - 4; }
@@ -218,14 +220,14 @@ export function createLab(canvas, onReady) {
     const narrow = Math.max(1, 1.52 / camera.aspect), radius = orbit.radius * (narrow > 1 ? Math.pow(narrow, .52) : 1);
     camera.position.set(orbit.target[0] + radius * Math.sin(orbit.phi) * Math.sin(orbit.theta), orbit.target[1] + radius * Math.cos(orbit.phi), orbit.target[2] + radius * Math.sin(orbit.phi) * Math.cos(orbit.theta));
     camera.lookAt(...orbit.target);
-    feed.render(state.clipElapsed, state.clipIndex, state.swipe);
+    feedTexture.needsUpdate = true;
     feedLight.intensity = 18 + Math.sin(time * 1.8) * 3 + excitement * 22;
-    feedLight.color.set([0x97d4ce, 0x77baff, 0x8ebafa, 0xebc879, 0xdc9eff][state.clipIndex % 5]);
+    feedLight.color.set(0xb5d9df);
     renderer.setRenderTarget(null); renderer.render(scene, camera);
   }
-  resize(); onReady?.();
+  resize();
   return {
-    render, clips,
+    render,
     captureFrame() {
       const previous = renderer.getRenderTarget();
       renderer.setRenderTarget(sensoryTarget);
@@ -234,94 +236,8 @@ export function createLab(canvas, onReady) {
       renderer.setRenderTarget(previous);
       return sensoryPixels.slice();
     },
-    nextClip(index) { feed.capture(); feed.setClip(index); },
     setView(index) { viewIndex = index % views.length; targetOrbit = { ...views[viewIndex], target: [...views[viewIndex].target] }; return viewIndex; },
     orbit(dx, dy) { targetOrbit.theta = THREE.MathUtils.clamp(targetOrbit.theta - dx * .005, -.7, 1.3); targetOrbit.phi = THREE.MathUtils.clamp(targetOrbit.phi - dy * .003, .7, 1.65); },
     dispose() { renderer.dispose(); }
-  };
-}
-
-function createFeed(renderer) {
-  const size = { width: 360, height: 640 };
-  const target = new THREE.WebGLRenderTarget(size.width, size.height);
-  const previous = new THREE.WebGLRenderTarget(size.width, size.height);
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x17204a);
-  const camera = new THREE.PerspectiveCamera(45, size.width / size.height, .1, 100); camera.position.set(0, 3.3, 7.2); camera.lookAt(0, .4, 0);
-  scene.add(new THREE.AmbientLight(0xffffff, 2.3));
-  const light = new THREE.DirectionalLight(0xd3f6ff, 5); light.position.set(2, 5, 3); scene.add(light);
-  const light2 = new THREE.PointLight(0xfc63c5, 20, 20); light2.position.set(-3, 2, 1); scene.add(light2);
-  const groups = [], animated = [];
-  const mat = (color, metalness = .3) => new THREE.MeshStandardMaterial({ color, metalness, roughness: .25 });
-  const m = (geo, material, xyz, parent) => { const mesh = new THREE.Mesh(geo, material); mesh.position.set(...xyz); parent.add(mesh); return mesh; };
-  for (let i = 0; i < clips.length; i++) { const g = new THREE.Group(); groups.push(g); animated.push([]); scene.add(g); }
-  // 01: metallic candy knot over a luminous lilac pedestal.
-  const knot = m(new THREE.TorusKnotGeometry(.89, .31, 110, 14, 2, 3), mat(0xa4e5ee, .85), [0, .9, 0], groups[0]); animated[0].push(knot);
-  m(new THREE.CylinderGeometry(1.52, 1.65, .32, 64), mat(0xa5a3f3, .5), [0, -.48, 0], groups[0]);
-  const floor0 = m(new THREE.PlaneGeometry(60, 60), mat(0x7253b1, .2), [0, -.66, 0], groups[0]); floor0.rotation.x = -Math.PI / 2;
-  for (let i = 0; i < 3; i++) { const ring = m(new THREE.TorusGeometry(1.25 + i * .29, .018, 5, 90), new THREE.MeshBasicMaterial({ color: 0xbba9ff }), [0, -.29 - i * .04, 0], groups[0]); ring.rotation.x = Math.PI / 2; }
-  // 02: endlessly running through a tiny neon city.
-  m(new THREE.BoxGeometry(3.9, .1, 80), mat(0x211a42), [0, -.6, -25], groups[1]);
-  for (const x of [-1.3, 0, 1.3]) m(new THREE.BoxGeometry(.035, .01, 80), new THREE.MeshBasicMaterial({ color: 0xff8ec7 }), [x, -.54, -25], groups[1]);
-  for (let i = 0; i < 22; i++) { const building = m(new THREE.BoxGeometry(.8, 1 + seed(i) * 6, 1.5), mat(i % 2 ? 0x6848b5 : 0x22569b), [(i % 2 ? -1 : 1) * 2.55, .6, -i * 2.5], groups[1]); animated[1].push(building); }
-  const runner = new THREE.Group(); runner.position.z = 1.3; groups[1].add(runner); m(new THREE.IcosahedronGeometry(.32, 1), mat(0xffec7d), [0, .3, 0], runner); m(new THREE.BoxGeometry(.39, .53, .29), mat(0xfc7c48), [0, -.09, 0], runner);
-  for (const x of [-.14, .14]) m(new THREE.BoxGeometry(.12, .27, .17), mat(0x91faff), [x, -.47, .01], runner);
-  animated[1].push(runner);
-  for (let i = 0; i < 19; i++) { const coin = m(new THREE.TorusGeometry(.16, .07, 6, 14), mat(0xffd549, .7), [0, .0, -i * 2.1 - 1], groups[1]); animated[1].push(coin); }
-  // 03: pastel kinetic orbs.
-  const floor2 = m(new THREE.PlaneGeometry(60, 60), mat(0x20384b), [0, -.8, 0], groups[2]); floor2.rotation.x = -Math.PI / 2;
-  for (let i = 0; i < 11; i++) { const ball = m(new THREE.SphereGeometry(.37 - i * .014, 24, 16), mat([0xed86ce, 0x9d96f6, 0x8deada, 0xece786][i % 4], .5), [0, 0, 0], groups[2]); animated[2].push(ball); }
-  m(new THREE.CylinderGeometry(1.45, 1.45, .2, 64), mat(0x577694), [0, -.7, 0], groups[2]);
-  // 04: fruit with zero thoughts rotates through the algorithm.
-  const fruitGroup = new THREE.Group(); groups[3].add(fruitGroup); animated[3].push(fruitGroup);
-  const banana = m(new THREE.TorusGeometry(1.02, .28, 5, 20, Math.PI * 1.15), mat(0xffcc32), [0, 0, 0], fruitGroup); banana.rotation.z = -.3;
-  for (const x of [-.2, .2]) { m(new THREE.SphereGeometry(.095, 12, 10), mat(0xffffff), [x, 1.06, .25], fruitGroup); m(new THREE.SphereGeometry(.045, 10, 8), mat(0x111726), [x, 1.05, .33], fruitGroup); }
-  const floor3 = m(new THREE.PlaneGeometry(60, 60), mat(0xea6a73), [0, -1.2, 0], groups[3]); floor3.rotation.x = -Math.PI / 2;
-  for (let i = 0; i < 14; i++) { const mini = m(new THREE.IcosahedronGeometry(.12, 0), mat(i % 2 ? 0xffe272 : 0xa4fd96), [Math.sin(i * 2) * 1.6, Math.cos(i * 2) * 1.5 + .4, -.5], groups[3]); animated[3].push(mini); }
-  // 05: the loop that never gets anywhere.
-  for (let i = 0; i < 24; i++) { const ring = m(new THREE.TorusGeometry(1.1, .1, 5, 6), mat(new THREE.Color().setHSL(i / 30 + .5, .9, .64), .5), [0, .6, -i * 1.3], groups[4]); animated[4].push(ring); }
-
-  const uiCanvas = document.createElement('canvas'); uiCanvas.width = 360; uiCanvas.height = 640;
-  const oldCanvas = document.createElement('canvas'); oldCanvas.width = 360; oldCanvas.height = 640;
-  const ui = new THREE.CanvasTexture(uiCanvas), oldUI = new THREE.CanvasTexture(oldCanvas);
-  ui.colorSpace = oldUI.colorSpace = THREE.SRGBColorSpace;
-  const screenMaterial = new THREE.ShaderMaterial({
-    uniforms: { frame: { value: target.texture }, prev: { value: previous.texture }, overlay: { value: ui }, oldOverlay: { value: oldUI }, progress: { value: 1 } },
-    vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader: 'uniform sampler2D frame;uniform sampler2D prev;uniform sampler2D overlay;uniform sampler2D oldOverlay;uniform float progress;varying vec2 vUv;void main(){float y=vUv.y+progress;vec2 p=vec2(vUv.x,mod(y,1.0));vec4 video;vec4 ui;if(y>=1.0){video=texture2D(frame,p);ui=texture2D(overlay,p);}else{video=texture2D(prev,p);ui=texture2D(oldOverlay,p);}gl_FragColor=vec4(mix(video.rgb,ui.rgb,ui.a),1.0);}',
-    toneMapped: false
-  });
-  let active = 0;
-  function drawUI(index) {
-    const c = uiCanvas.getContext('2d'), clip = clips[index]; c.clearRect(0, 0, 360, 640);
-    let g = c.createLinearGradient(0, 370, 0, 640); g.addColorStop(0, '#00000000'); g.addColorStop(1, '#060a17ee'); c.fillStyle = g; c.fillRect(0, 370, 360, 270);
-    g = c.createLinearGradient(0, 0, 0, 110); g.addColorStop(0, '#05080c80'); g.addColorStop(1, '#05080c00'); c.fillStyle = g; c.fillRect(0, 0, 360, 110);
-    c.textAlign = 'center'; c.fillStyle = '#ffffffaa'; c.font = '500 15px Arial'; c.fillText('Following', 116, 39); c.fillStyle = '#fff'; c.font = 'bold 16px Arial'; c.fillText('For You', 219, 39); c.fillRect(194, 50, 49, 3);
-    c.font = 'bold 24px Arial'; c.fillStyle = '#fff'; c.textAlign = 'center';
-    if (index === 3) { c.fillText('THEY DO NOT KNOW', 180, 133); c.fillText('I AM A BANANA', 180, 163); }
-    else { c.font = 'bold 21px Arial'; c.shadowColor = '#00000088'; c.shadowBlur = 7; c.fillText(clip.caption, 180, 140); c.shadowBlur = 0; }
-    c.font = '32px Arial'; c.fillText('♥', 322, 362); c.font = 'bold 10px Arial'; c.fillText(clip.likes, 322, 382);
-    c.font = '29px Arial'; c.fillText('●', 322, 423); c.fillStyle = '#232440'; c.font = 'bold 16px Arial'; c.fillText('···', 322, 419); c.fillStyle = '#fff'; c.font = 'bold 10px Arial'; c.fillText('2,481', 322, 443);
-    c.font = '33px Arial'; c.fillText('↗', 322, 485); c.font = 'bold 10px Arial'; c.fillText('Share', 322, 506);
-    c.textAlign = 'left'; c.font = 'bold 16px Arial'; c.fillText(clip.user, 20, 528); c.font = '14px Arial'; c.fillText(clip.caption, 20, 553); c.fillStyle = '#ffffffad'; c.font = '12px Arial'; c.fillText(clip.tag, 20, 576); c.fillText('♫ original audio · loop forever', 20, 607);
-    c.fillStyle = '#ffffffb0'; c.fillRect(125, 629, 110, 3); ui.needsUpdate = true;
-  }
-  drawUI(0);
-  return {
-    screenMaterial,
-    capture() { renderer.setRenderTarget(previous); renderer.render(scene, camera); oldCanvas.getContext('2d').clearRect(0, 0, 360, 640); oldCanvas.getContext('2d').drawImage(uiCanvas, 0, 0); oldUI.needsUpdate = true; },
-    setClip(index) { active = index; drawUI(index); },
-    render(t, index, swipe) {
-      active = index; groups.forEach((g, i) => g.visible = i === active);
-      scene.background.set([0x8270ca, 0x181437, 0x254659, 0xf68987, 0x101021][active]);
-      camera.position.set(0, active === 1 ? 2.3 : active === 4 ? .7 : 3.3, active === 4 ? 5 : 7.2); camera.lookAt(0, active === 4 ? .6 : .4, active === 1 ? -4 : 0);
-      knot.rotation.set(t * .33, t * .47, Math.sin(t * .5) * .3); knot.position.y = .8 + Math.sin(t * 1.3) * .15;
-      if (active === 1) { animated[1].slice(0, 22).forEach((m, i) => m.position.z = ((t * 7 - i * 2.5) % 55 + 55) % 55 - 50); const run = animated[1][22]; run.position.x = Math.sin(t * 1.5) > .4 ? 1.3 : Math.sin(t * 1.5) < -.4 ? -1.3 : 0; run.position.y = Math.abs(Math.sin(t * 11)) * .12; run.rotation.z = Math.sin(t * 11) * .12; animated[1].slice(23).forEach((coin, i) => { coin.position.z = ((t * 7 - i * 2.1) % 40 + 40) % 40 - 36; coin.rotation.y = t * 3; coin.position.x = run.position.x; }); }
-      animated[2].forEach((ball, i) => { const a = t * .8 + i * Math.PI * 2 / 11; ball.position.set(Math.sin(a) * .95, Math.abs(Math.sin(t * 1.7 + i * .3)) * 2.3 - .18, Math.cos(a) * .95); });
-      fruitGroup.rotation.set(.1, Math.sin(t * .8) * .8, Math.sin(t * 1.6) * .2); fruitGroup.position.y = Math.sin(t * 2) * .2;
-      animated[3].slice(1).forEach((obj, i) => { obj.rotation.x = t; obj.rotation.z = -t; obj.position.y = Math.cos(t + i * 2) * 1.8 + .5; });
-      animated[4].forEach((ring, i) => { ring.position.z = ((t * 2.3 - i * 1.3) % 31.2 + 31.2) % 31.2 - 29; ring.rotation.z = t * .23 + i * .14; });
-      screenMaterial.uniforms.progress.value = swipe;
-      renderer.setRenderTarget(target); renderer.render(scene, camera);
-    }
   };
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createPlayback, createFrameClock, clips } from '../dist/simulation.js';
+import { createPlayback, createFrameClock } from '../dist/simulation.js';
 import { BrainClient } from '../dist/backend.js';
 
 const advance = (sim, seconds) => { for (let i = 0; i < Math.ceil(seconds * 60); i++) sim.tick(1 / 60); };
@@ -26,15 +26,10 @@ test('presentation waits for the backend and never invents neural telemetry', ()
   sim.setPaused(false); advance(sim, 2); assert.ok(sim.state.time > 1);
   assert.equal(sim.state.pam11Hz, 0);
 });
-test('autoplay cycles shorts and pause freezes the exposure clock', () => {
-  const observed = [], sim = createPlayback({ onNext: i => observed.push(i) }); sim.setPaused(false);
-  advance(sim, clips.reduce((sum, clip) => sum + clip.duration, 0) + 1);
-  assert.deepEqual(observed, [1, 2, 3, 4, 0]); assert.equal(sim.state.consumed, 6);
-  sim.setPaused(true); const time = sim.state.time; advance(sim, 3); assert.equal(sim.state.time, time);
-});
-test('manual swipes debounce without resuming a paused brain', () => {
-  const sim = createPlayback(); assert.equal(sim.next(), true); assert.equal(sim.next(), false);
-  advance(sim, 1); assert.equal(sim.state.swipe, 1); assert.equal(sim.next(), true); assert.equal(sim.state.paused, true);
+test('pause freezes exposure while video playback owns clip timing', () => {
+  const sim = createPlayback(); sim.setPaused(false); advance(sim, 2);
+  const time = sim.state.time; sim.setPaused(true); advance(sim, 3);
+  assert.equal(sim.state.time, time); assert.equal('clipIndex' in sim.state, false);
 });
 test('invalid presentation steps fail intentionally', () => {
   const sim = createPlayback({ reducedMotion: true }); assert.equal(sim.state.paused, true);

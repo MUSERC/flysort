@@ -6,4 +6,6 @@ The retained graph and checksum locks are MaleCNS v1.0. The [MaleCNS collaborati
 
 This app reuses the upstream LIF kernel, inferred R1–R6/R8 projection, and experimental KC→MBON memory rule. It replaces the trading environment with RGB frames of the shortform display. Manual stimulation delivers a 200 ms, 20 mV-equivalent current to the 15 annotated PAM11 neurons. Any effect on a display, animation, or feed is an engineered interface. Wiring data does not establish accurate physiology, subjective experience, attention, addiction, or learning.
 
-The 3D scene and synthetic short animations are original to this repository. Three.js 0.180.0 is distributed under `dist/vendor/THREE-LICENSE.txt`.
+The 3D scene is original to this repository. Three.js 0.180.0 is distributed under `dist/vendor/THREE-LICENSE.txt`.
+
+The insect videos are separately downloaded from the YouTube sources in `video-sources.json`. `dist/media/playlist.json` records each original title, creator, source URL, duration, and prepared-file SHA-256. The player links to the current video's creator and source. Video files remain local and are excluded from Git; their creators retain their respective rights, and this repository's code license does not apply to their footage or audio.

@@ -17,3 +17,13 @@ Commands are in the root README. Full-network tests are opt-in because they requ
 The local browser console reproduced a startup failure: the first `requestAnimationFrame` timestamp could precede the `performance.now()` value recorded during setup, passing a negative time step to playback and stopping the loop before the first render. The presentation clock now initializes from the first animation frame and bounds subsequent time steps. Pixel submission waits for a successfully rendered scene, and a rendering exception suspends visual input and shows a visible error.
 
 All nine JavaScript checks passed, including the startup timestamp regression, repeated timestamps/suspended-tab gaps, and withholding frame requests when rendering is unavailable. In the actual local browser, the fly, overhead cable, and angled video screen rendered successfully; the exposure clock advanced, automatic and manual short changes worked, camera switching worked, and neural telemetry continued updating. No new browser errors appeared after the fix. These were browser/presentation changes; the numerical model was unchanged.
+
+## Downloaded insect playlist — 2026-09-11
+
+Ten fly/insect videos were downloaded with yt-dlp and prepared as H.264/AAC MP4s with FFmpeg. FFprobe verified their codecs, dimensions, and durations; all ten were visually checked. The playlist totals 353 seconds and occupies about 25 MB. Source titles, creators, URLs, and prepared-file hashes are recorded in `dist/media/playlist.json`.
+
+In the local browser, actual moving insect footage rendered on the 3D phone and advanced automatically from the first clip through the second and third. Manual next worked while paused, and resume restarted the selected video. The original-audio toggle switched on and off without playback errors. The browser reported no errors or warnings during these checks.
+
+The backend's saved 90×160 `latest-input.png` showed the same insect footage and portrait composition as the phone. Pausing held neural time at 193.20 seconds and preserved the input and spike hashes across subsequent status checks. Resuming advanced both video time and neural time, with new input hashes and measured spikes. Failed, loading, stale, or paused media is gated from the sensory stream; there is no synthetic-video fallback.
+
+All 13 JavaScript checks passed, covering the retained clock/bridge behavior plus local-media cycling, paused manual changes, full-frame aspect fitting, stale-frame rejection, and skipping failed media. The numerical backend was unchanged, so the full-network assays above were not repeated for this presentation change. WebMCP status, pause, next-short, and resume actions were exercised successfully.
