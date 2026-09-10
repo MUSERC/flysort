@@ -8,4 +8,4 @@ This app reuses the upstream LIF kernel, inferred R1–R6/R8 projection, and exp
 
 The 3D scene is original to this repository. Three.js 0.180.0 is distributed under `dist/vendor/THREE-LICENSE.txt`.
 
-The insect videos are separately downloaded from the YouTube sources in `video-sources.json`. `dist/media/playlist.json` records each original title, creator, source URL, duration, and prepared-file SHA-256. The player links to the current video's creator and source. Video files remain local and are excluded from Git; their creators retain their respective rights, and this repository's code license does not apply to their footage or audio.
+The insect videos are separately downloaded from the YouTube sources in `video-sources.json`. `dist/media/playlist.json` records each original title, creator, source URL, duration, and prepared-file SHA-256. The observation window links to that playlist through its Video credits link. Video files remain local and are excluded from Git; their creators retain their respective rights to their footage and audio. The README screenshot includes a frame from this credited playlist.

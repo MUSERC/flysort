@@ -1,96 +1,96 @@
 # Fly / Wirehead
 
-A local Python/C++ fly-connectome experiment with a 3D observation window. The full **166,700-neuron / 25,582,938-connection MaleCNS v1.0 network** receives RGB pixels captured from the shortform screen. The displayed spike totals, network firing rate, and raster come from that running network.
+**Born to fly. Forced to scroll.**
 
-## Start
+![A wired fly watching insect Shorts on a phone, with live network activity and a neural spike raster.](docs/assets/fly-wirehead.png)
 
-From this repository, with Python 3.11+, a C++17 compiler, [uv](https://docs.astral.sh/uv/), yt-dlp, and FFmpeg (on macOS: `brew install yt-dlp ffmpeg`):
+A fly-connectome simulation watching an endless feed of insect videos. **166,700 neurons. 25.6 million connections. A new Short every three seconds.**
+
+The phone plays real footage. Its pixels stimulate the reconstructed fly network, and the network's measured activity drives the fly's movements and the live neural overlay. The brain runs locally in Python and C++; Three.js renders the observation chamber in your browser.
+
+Inspired by [Stonkfly](https://github.com/nftechie/stonkfly). This fly has been given a phone.
+
+## Run it
+
+You'll need **Python 3.11+**, a **C++17 compiler**, [uv](https://docs.astral.sh/uv/), **yt-dlp**, and **FFmpeg**. Allow several GB of disk space; **16 GB RAM** is recommended. Use a browser with WebGL 2 and H.264 playback.
+
+On macOS, install the compiler with `xcode-select --install` if needed, and the tools with `brew install uv yt-dlp ffmpeg`. Then:
 
 ```sh
+git clone https://github.com/mattyhempstead/fly-wirehead.git
+cd fly-wirehead
 uv sync
 uv run flywirehead prepare
 uv run python scripts/download_videos.py
 uv run flywirehead run
 ```
 
-Preparation downloads approximately 1.1 GB, verifies source SHA-256 hashes, retains the full graph, and verifies every graph array against the upstream locks. It is already prepared on the development machine. Data, native build products, and runtime checkpoints stay local and are excluded from Git. Allow several GB of disk space; 16 GB RAM is recommended.
+The first preparation downloads about **1.1 GB** of neural data and verifies its checksums. The video script downloads the five selected YouTube Shorts and prepares portrait MP4s. The native neural kernel builds on first launch.
 
-The video command downloads **the five selected portrait YouTube Shorts**, in the order recorded in `video-sources.json`. Each plays for **3 seconds** before swiping to the next, making a roughly 15-second loop. The final source, `PBWmPoLjVvA`, is trimmed to its first **4 seconds** in the prepared file; the `trim_end_seconds` setting makes that cut reproducible. The downloader verifies that each source is portrait and prepares an exact **360×640 (9:16)** H.264/AAC MP4 in `dist/media/`; the original downloads stay in `runs/video-downloads/`. Both are excluded from Git. The source list, titles, creator links, dimensions, durations, and prepared-file hashes are committed. Once prepared, video playback works offline. Rerun the command to restore missing media; use `--skip-download` to prepare it from the existing download cache.
+The last command opens [localhost:4173](http://127.0.0.1:4173/). Keep the Python process running. **Ctrl-C** saves the brain and stops the server; running it again resumes the saved state. On macOS, you can also use `run.command` after setup.
 
-`run` opens **http://127.0.0.1:4173**. On macOS, double-click `run.command` after setup. The local Python process must stay running. This is a local application; the older hosted static demo does not run the new brain.
-
-Without uv:
+<details>
+<summary>Using pip instead of uv</summary>
 
 ```sh
 python3.12 -m venv .venv
-.venv/bin/python -m pip install -e .
-.venv/bin/python -m flywirehead prepare
-.venv/bin/python scripts/download_videos.py
-.venv/bin/python -m flywirehead run
+source .venv/bin/activate
+pip install -e .
+python -m flywirehead prepare
+python scripts/download_videos.py
+python -m flywirehead run
 ```
 
-## What actually runs
+</details>
 
-1. An HTML video element plays the downloaded insect playlist. Its decoded frames fill the portrait phone canvas edge to edge, which Three.js displays. Clip changes slide vertically; there is no blurred filler or letterboxing added by the player.
-2. The browser reads that composited screen into a **90×160 RGBA** frame. Python flips WebGL's rows and removes alpha. The most recent accepted screen image is saved as `runs/local/latest-input.png`.
-3. The upstream inferred visual projection stimulates **3,335 R1–R6 inputs and 811 R8 inputs** from the image's luminance and color.
-4. Python calls the compiled C++17 kernel through `ctypes`. It integrates the full retained spiking graph in **0.1 ms** steps.
-5. Each accepted frame advances **50 ms of neural time** by default. The interface explicitly separates wall-clock exposure, simulated brain time, and compute time. It samples the video; it does not claim frame-for-frame biological real-time playback.
-6. Actual network spike counts, mean PAM11/KC firing rates, and 10 ms bins for 96 fixed identified cells return to the observation window. Missing/disconnected engines display no measurements; there is no fake fallback.
+## What the fly receives
 
-The playlist automatically advances after three seconds of actual media playback and wraps after the final clip. Pausing, buffering, or hiding the window holds that timer. An early video end also advances to the next clip. Its titles and creator links come from the downloaded metadata. The subject is compelled to receive whichever clip is on screen; the feed's order and playback timing are presentation controls, not learned behavior. Loading, failed, paused, or stalled playback supplies no new observations; the most recent valid measurements remain visible.
+The browser captures the phone's image at **90×160 pixels**. Luminance and color stimulate **3,335 R1–R6 inputs and 811 R8 inputs** in the full retained MaleCNS v1.0 graph. A compiled spiking-network kernel advances **50 ms of neural time** per accepted frame, using **0.1 ms integration steps**.
 
-## Reward, learning, and movement
+The overlay displays actual network spike counts, firing rates, and a 96-cell raster. Wing, body, leg, and head motion are amplified readouts of measured motor activity. Playback pauses when the window is hidden; stalled or missing video supplies no new observations.
 
-**PAM11 stimulation** (keyboard **P** or WebMCP) schedules a **200 ms, 20 mV-equivalent current** into the 15 annotated PAM11 cells. The pulse advances in neural time as frames are processed. Repeated requests replace the remaining pulse rather than stacking unlimited current. There are no hardcoded per-video dopamine scores and no automatic reward on a swipe.
+**The wiring is reconstructed; the physiology and movement mapping are approximations.** The feed advances on a timer, so the fly does not choose videos. Manual PAM11 stimulation and an experimental synaptic plasticity rule are implemented, but learned preference, pleasure, and addiction have not been established. No living fly is involved.
 
-The upstream experimental plasticity rule can modify the **7,835 existing KC→MBON07/11 connections**. The API and saved telemetry report how many differ from baseline. A changing weight alone is not evidence of useful learning, pleasure, attention, or addiction. PAM11 telemetry uses **spikes per neuron per neural second (Hz)**, not a fabricated dopamine concentration or percentage.
+[How the model works →](docs/model.md) · [Validation and measured results →](docs/validation.md)
 
-The 3D movement is an amplified artistic readout: wing flutter and body/leg motion map MN9/DNp09 firing, head turning maps DNa02 right-minus-left firing, and electrode glow maps PAM11 firing. Motor rates use a saturating response tuned for the observed 5–30 Hz range, with a 100 ms attack and 700 ms release so brief bursts remain visible. Turning is smoothed over 200 ms. This changes only the animation; it adds no neural spikes or stimulation. Ambient breathing, city lighting, and screen motion are visual effects. This is not a validated biomechanical fly model.
+## The feed
 
-The display puts network activity and the spike raster over the chamber, with no current-video captions or visible controls. **Network firing** counts spikes across the full graph per simulated second; **Fly spikes** is the actual count in the most recent 50 ms neural sample. The network graph uses a labelled zero-based scale. Quiet PAM11 cells are not a measure of overall network activity.
+Five fly and insect Shorts play in a loop, swiping every **three seconds of playback**. Every prepared clip is **360×640 (9:16)**; the final source is trimmed to its first four seconds. Playback works offline once the videos are prepared.
 
-## Controls and persistence
+Edit [video-sources.json](video-sources.json) and rerun the downloader to change the playlist. Titles, creators, source links, and file hashes are recorded in the [video credits](dist/media/playlist.json). Videos, datasets, and brain checkpoints stay local and are excluded from Git.
 
-- Playback runs automatically with no visible controls. Drag to orbit; **C** cycles three camera positions and **F** toggles fullscreen.
-- Scroll, swipe vertically, or press an arrow key to skip a short.
-- **Space** pauses the actual video and stops new neural observations after any already-running step finishes.
-- **P** applies PAM11 stimulation to the numerical model.
-- **S** requests a checkpoint. Checkpoints are also saved every two active minutes and on **Ctrl-C**.
-- Restarting restores neural state and plastic weights from `runs/local/brain.npz`. Queued stimulation is not replayed on restart.
-- **M** toggles the video's original audio, which starts muted. Reduced-motion preferences start the experiment paused. Hidden or closed observation windows pause playback and supply no new frames, so the brain waits.
-- One observation window at a time supplies the sensory stream. A second can take over after four seconds without input from the first.
+## Controls
 
-`runs/local/events.jsonl` contains actual measurements and input/spike hashes; `latest.json` is the last observation; `provenance.json` records the data/model/source configuration. Neuron IDs are serialized as strings to preserve integer precision.
+The chamber has no visible controls. It starts playing automatically with audio muted.
 
-Useful options:
+| Input | Action |
+| --- | --- |
+| Drag | Orbit the camera |
+| Scroll, vertical swipe, or up/down arrows | Next Short |
+| Space | Pause / resume video and neural input |
+| C / F | Change camera / toggle fullscreen |
+| M | Toggle original video audio |
+| P | Apply a 200 ms current pulse to the 15 PAM11 dopamine cells |
+| S | Save a brain checkpoint |
 
-```sh
-uv run flywirehead verify
-uv run flywirehead run --no-browser
-uv run flywirehead run --neural-ms 100
-uv run flywirehead run --run-dir runs/control --frozen
-uv run flywirehead run --run-dir runs/new-experiment --fresh
-uv run flywirehead --data /path/to/data run
-```
+Checkpoints also save every two active minutes. Run directories, API telemetry, independent experiments, and optional WebMCP controls are covered in the [model and operation notes](docs/model.md#controls-and-persistence).
 
-Use a separate `--run-dir` for independent experiments. `--fresh` explicitly starts over and will replace that run's checkpoint when saved. Only one worker can own a run directory. The server binds to loopback, validates local origins, and uses an ephemeral session token for controls. No cloud service or trading credentials are used.
-
-## Validation
+## Check it
 
 ```sh
 uv sync --extra test
 uv run pytest -q
-FLYWIREHEAD_FULL_TEST=1 uv run pytest -q -s tests/test_full_connectome.py
 node --test tests/*.test.mjs
 ```
 
-The full-graph assay compares black/white visual input from the same checkpoint, stimulated/control trials, frozen plasticity, and exact replay after restore. It checks actual mechanism behavior, not biological validity or whether the fly has learned to prefer shorts.
+After preparing the dataset, run the full-network assays with:
 
-## Sources
+```sh
+FLYWIREHEAD_FULL_TEST=1 uv run pytest -q -s tests/test_full_connectome.py
+```
 
-The numerical backend is adapted from [nftechie/stonkfly](https://github.com/nftechie/stonkfly), commit `78ef3e05ab0fa086032098558d893667068944a0`, under MIT. The local copy includes the source, provenance, lockfiles, and license; it does not depend on the reference clone or import its trading stack. See [THIRD_PARTY.md](THIRD_PARTY.md) for MaleCNS CC BY 4.0 attribution and [flywirehead/upstream.json](flywirehead/upstream.json) for source hashes.
+## Credits
 
-The model combines real reconstructed wiring with approximate physiology and an unvalidated experimental memory rule. It does not reproduce a complete living fly or establish consciousness. No real animals are involved.
+The neural backend is adapted from [nftechie/stonkfly](https://github.com/nftechie/stonkfly), with its MIT notice preserved. Wiring data comes from the **MaleCNS v1.0** dataset under **CC BY 4.0**. The observation chamber uses **Three.js**. Video creators retain the rights to their footage and audio.
 
-The optional WebMCP controls share the normal interface actions; status, pause, resume, and next-short actions were verified in the local browser. WebGL 2 and H.264 video playback are needed for the 3D window. Three.js is vendored locally; the Google Fonts stylesheet is optional and falls back to system fonts offline.
+See [sources and licenses](THIRD_PARTY.md) and [the pinned upstream revision](flywirehead/upstream.json).
