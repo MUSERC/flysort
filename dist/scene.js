@@ -1,27 +1,28 @@
 import * as THREE from 'three';
 import { createMotionResponse } from './motion.js';
+import { createGarden } from './garden.js';
 
-const C = { lime: 0xc4f86a, cyan: 0x4be4d2, pink: 0xec527e };
+const C = { lime: 0xc4f86a };
 const seed = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const vec = (p) => new THREE.Vector3(...p);
 
 export function createLab(canvas, feedCanvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
-  renderer.setClearColor(0x080e13);
+  renderer.setClearColor(0xc9e4ce);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = 1.18;
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x080e13, .047);
+  scene.fog = new THREE.FogExp2(0xc9e4ce, .025);
   const camera = new THREE.PerspectiveCamera(37, 1, .1, 100);
   const group = new THREE.Group();
   scene.add(group);
   const material = (color, props = {}) => new THREE.MeshStandardMaterial({ color, roughness: .56, metalness: .28, ...props });
-  const dark = material(0x141f25), metal = material(0x2b4149, { metalness: .75, roughness: .34 });
+  const dark = material(0x203b37), metal = material(0x78988b, { metalness: .42, roughness: .4 });
   const glow = (color, strength = 1) => material(color, { emissive: color, emissiveIntensity: strength, roughness: .4 });
-  const cyan = glow(C.cyan, 2), lime = glow(C.lime, 2), pink = glow(C.pink, 2);
+  const lime = glow(C.lime, 2);
   function mesh(geometry, mat, at, parent = group) { const m = new THREE.Mesh(geometry, mat); m.position.set(...at); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; }
   function box(size, at, mat = dark, parent = group) { return mesh(new THREE.BoxGeometry(...size), mat, at, parent); }
   function orb(size, at, mat, parent = group, detail = 2) { const m = mesh(new THREE.IcosahedronGeometry(1, detail), mat, at, parent); m.scale.set(...size); return m; }
@@ -29,37 +30,25 @@ export function createLab(canvas, feedCanvas) {
   function wire(points, radius, mat, parent = group) { return mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(vec)), 44, radius, 6, false), mat, [0, 0, 0], parent); }
   function label(text, width, height, at, parent = group, color = '#b3d3c5', bg = '#111e23', font = 22) { const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * height / width); const ctx = c.getContext('2d'); if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, c.width, c.height); } ctx.font = `${font}px monospace`; ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; text.split('\n').forEach((s, i, arr) => ctx.fillText(s, 256, c.height / 2 + (i - (arr.length - 1) / 2) * font * 1.65)); const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; const m = mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: tx, transparent: true, toneMapped: false }), at, parent); return m; }
 
-  scene.add(new THREE.AmbientLight(0x779fac, 1.1));
-  const key = new THREE.DirectionalLight(0xc3ebe9, 3.1); key.position.set(-3, 8, 5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: .1, far: 24 }); key.shadow.bias = -.001; scene.add(key);
-  const rim = new THREE.DirectionalLight(0x426bad, 2.8); rim.position.set(-4, 3, -5); scene.add(rim);
-  const feedLight = new THREE.PointLight(0x8fe1ba, 22, 8, 2); feedLight.position.set(1.5, 3, 1); scene.add(feedLight);
-  const pinkLight = new THREE.PointLight(0xc64176, 12, 7, 2); pinkLight.position.set(-3, 2, 1); scene.add(pinkLight);
+  scene.add(new THREE.HemisphereLight(0xf0ffed, 0x678a4c, 2.1));
+  const key = new THREE.DirectionalLight(0xffebc2, 3.5); key.position.set(-3, 8, 5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: .1, far: 24 }); key.shadow.bias = -.001; scene.add(key);
+  const rim = new THREE.DirectionalLight(0xd1f6e0, 2.2); rim.position.set(-4, 3, -5); scene.add(rim);
+  const fill = new THREE.DirectionalLight(0xf5ffe5, .9); fill.position.set(4, 3, 6); scene.add(fill);
+  const feedLight = new THREE.PointLight(0xcbe8db, 5, 8, 2); feedLight.position.set(1.5, 3, 1); scene.add(feedLight);
 
-  // A miniature nocturnal laboratory, with the city just outside the glass.
-  const floor = box([65, .12, 65], [0, -.95, 0], material(0x080f14));
-  const floorGrid = new THREE.GridHelper(45, 40, 0x19393a, 0x12282e); floorGrid.position.y = -.875; scene.add(floorGrid);
-  const windowData = [];
-  for (let i = 0; i < 23; i++) {
-    const h = 2.4 + seed(i + 30) * 8, w = .6 + seed(i + 91) * 1.1, x = (i - 11) * .94;
-    box([w, h, .6], [x, h / 2 - .85, -6 - seed(i) * 2.8], material(i % 3 ? 0x0b1621 : 0x101923));
-    for (let j = 0; j < 16; j++) for (let k = 0; k < 3; k++) { if (seed(i * 210 + j * 3 + k) < .43) continue; const wy = j * .46; if (wy > h - .5) continue; windowData.push({ size: [.022 + seed(j + i) * .023, .06 + seed(k + i + j) * .06, .01], at: [x + (k - 1) * w * .23, wy - .4, -5.683 - seed(i) * 2.8], color: seed(j + i) > .64 ? 0x684662 : 0x2d697d }); }
-  }
-  const cityWindows = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ toneMapped: false }), windowData.length);
-  const windowTransform = new THREE.Object3D();
-  windowData.forEach((item, i) => { windowTransform.position.set(...item.at); windowTransform.scale.set(...item.size); windowTransform.updateMatrix(); cityWindows.setMatrixAt(i, windowTransform.matrix); cityWindows.setColorAt(i, new THREE.Color(item.color)); });
-  group.add(cityWindows);
-  for (const x of [-6.4, -1.8, 3, 7.6]) { box([.065, 10, .12], [x, 3, -5.3], metal); box([.011, 9, .012], [x + .033, 3, -5.22], glow(0x31676c, 1)); }
-  box([21, .065, .12], [0, 4.8, -5.3], dark);
-  box([9.1, .27, 5.1], [0, .25, .15], material(0x152129, { roughness: .4, metalness: .65 }));
-  box([9.16, .035, 5.14], [0, .39, .15], material(0x26363b, { metalness: .6 }));
-  box([9.04, .025, .03], [0, .28, 2.72], cyan);
-  box([.03, .025, 5], [-4.55, .28, .15], cyan);
-  for (const x of [-3.7, 3.7]) for (const z of [-1.7, 2]) box([.16, 1.2, .16], [x, -.37, z], dark);
-  const deskLines = new THREE.GridHelper(8.9, 20, 0x274147, 0x1d3238); deskLines.position.set(0, .414, .15); deskLines.scale.z = .57; group.add(deskLines);
-  // Isolation pad and restraint frame.
-  box([4.05, .045, 2.8], [-1.38, .435, .22], material(0x0b171b, { roughness: .75 }));
-  for (const z of [-1.15, 1.59]) box([4.05, .015, .017], [-1.38, .46, z], glow(0x477966, .6));
-  const padText = label('F–001   /   NEURAL INTERFACE', 1.72, .15, [-1.52, .47, 1.42], group, '#608f7b', null, 30); padText.rotation.x = -Math.PI / 2;
+  // A sunlit garden surrounds a pale observation platform.
+  box([90, .12, 90], [0, -.95, 0], material(0x89a66b, { roughness: 1, metalness: 0 }));
+  const garden = createGarden(group);
+  box([9.1, .27, 5.1], [0, .25, .15], material(0xc5d3af, { roughness: .68, metalness: .08 }));
+  box([9.16, .035, 5.14], [0, .39, .15], material(0xe2e9cb, { roughness: .63, metalness: .05 }));
+  box([9.04, .025, .03], [0, .28, 2.72], glow(0xdcf5b5, .35));
+  box([.03, .025, 5], [-4.55, .28, .15], glow(0xdcf5b5, .35));
+  for (const x of [-3.7, 3.7]) for (const z of [-1.7, 2]) box([.16, 1.2, .16], [x, -.37, z], metal);
+  const deskLines = new THREE.GridHelper(8.9, 20, 0xa4b79a, 0xc0d0b0); deskLines.position.set(0, .414, .15); deskLines.scale.z = .57; deskLines.material.transparent = true; deskLines.material.opacity = .35; group.add(deskLines);
+  // A mint-colored isolation pad separates the fly from the warm platform.
+  box([4.05, .045, 2.8], [-1.38, .435, .22], material(0x9cbda5, { roughness: .82, metalness: .05 }));
+  for (const z of [-1.15, 1.59]) box([4.05, .015, .017], [-1.38, .46, z], material(0xd9ebc4, { metalness: .15 }));
+  const padText = label('F–001   /   NEURAL INTERFACE', 1.72, .15, [-1.52, .47, 1.42], group, '#456950', null, 30); padText.rotation.x = -Math.PI / 2;
   // A rigid overhead boom carries the cable directly above the cranial implant.
   const tetherAnchor = vec([-.738, 3.27, .2]);
   rod([-2.55, .45, -1.03], [-2.55, 3.43, -1.03], .06, metal);
@@ -71,13 +60,13 @@ export function createLab(canvas, feedCanvas) {
   rod([-.738, 3.32, .2], [ -.738, 3.285, .2], .081, lime);
   // Original low-poly Drosophila, facing its terminal.
   const fly = new THREE.Group(); fly.position.set(-1.35, 1.43, .35); fly.rotation.y = .24; group.add(fly);
-  const shell = material(0x587b7d, { flatShading: true, metalness: .33, roughness: .53 });
-  const abdomen = orb([.91, .39, .43], [-.83, -.02, 0], material(0x152c31, { flatShading: true }), fly);
-  for (let i = 0; i < 5; i++) { const ring = mesh(new THREE.TorusGeometry(.36 - i * .035, .035, 4, 14), material(0x2b4548), [-.65 - i * .17, -.01, 0], fly); ring.rotation.y = Math.PI / 2; ring.scale.z = .94; }
+  const shell = material(0x80bfc1, { flatShading: true, metalness: .2, roughness: .48 });
+  const abdomen = orb([.91, .39, .43], [-.83, -.02, 0], material(0x3e6867, { flatShading: true, metalness: .12 }), fly);
+  for (let i = 0; i < 5; i++) { const ring = mesh(new THREE.TorusGeometry(.36 - i * .035, .035, 4, 14), material(0x719995), [-.65 - i * .17, -.01, 0], fly); ring.rotation.y = Math.PI / 2; ring.scale.z = .94; }
   const thorax = orb([.66, .53, .5], [-.05, .08, 0], shell, fly);
   const head = new THREE.Group(); head.position.set(.63, .19, 0); fly.add(head);
-  orb([.41, .4, .4], [0, 0, 0], material(0x71888b, { flatShading: true }), head);
-  const eyeMaterial = material(0x9e1837, { flatShading: true, roughness: .29, metalness: .45, emissive: 0x3c0614, emissiveIntensity: .4 });
+  orb([.41, .4, .4], [0, 0, 0], material(0xa2cecc, { flatShading: true, metalness: .18 }), head);
+  const eyeMaterial = material(0xc92748, { flatShading: true, roughness: .34, metalness: .15, emissive: 0x400916, emissiveIntensity: .15 });
   const eyes = [];
   for (const side of [-1, 1]) {
     const eye = orb([.28, .37, .255], [.12, .04, .29 * side], eyeMaterial, head, 2); eyes.push(eye);
@@ -100,8 +89,8 @@ export function createLab(canvas, feedCanvas) {
     const points = [[0, 0, 0], [-.75, .07, .38 * side], [-1.72, .01, 1.1 * side], [-2.03, -.035, 1.05 * side], [-2.21, -.04, .83 * side], [-1.77, -.03, .41 * side], [-.66, -.015, .03 * side]];
     const vertices = []; for (let i = 1; i < points.length - 1; i++) vertices.push(...points[0], ...points[i], ...points[i + 1]);
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geo.computeVertexNormals();
-    const m = mesh(geo, material(0xa9dce2, { transparent: true, opacity: .48, side: THREE.DoubleSide, roughness: .2, metalness: .5, flatShading: true }), [0, 0, 0], wing); m.castShadow = false;
-    const vein = material(0x77999b, { transparent: true, opacity: .68, metalness: .5 });
+    const m = mesh(geo, material(0xdcf4e8, { transparent: true, opacity: .58, side: THREE.DoubleSide, roughness: .3, metalness: .15, flatShading: true }), [0, 0, 0], wing); m.castShadow = false;
+    const vein = material(0x82a9a0, { transparent: true, opacity: .78, metalness: .15 });
     const line = [...points, points[0]]; for (let j = 0; j < line.length - 1; j++) rod(line[j], line[j + 1], .009, vein, wing, 4);
     for (let j = 2; j < 6; j++) rod([-.1, 0, .025 * side], points[j], .006, vein, wing, 3);
     rod([-.83, .01, .31 * side], [-1.23, .025, .7 * side], .007, vein, wing, 3);
@@ -187,7 +176,7 @@ export function createLab(canvas, feedCanvas) {
   const sensoryPixels = new Uint8Array(90 * 160 * 4);
   const dustGeo = new THREE.BufferGeometry(), dustPos = new Float32Array(90 * 3);
   for (let i = 0; i < 90; i++) { dustPos[i * 3] = seed(i + 600) * 10 - 5; dustPos[i * 3 + 1] = seed(i + 700) * 6; dustPos[i * 3 + 2] = seed(i + 900) * 8 - 4; }
-  dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3)); const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0x82c1a1, size: .013, transparent: true, opacity: .45 })); group.add(dust);
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3)); const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xffefad, size: .032, transparent: true, opacity: .7 })); group.add(dust);
 
   const views = [{ theta: .36, phi: 1.17, radius: 12.6, target: [0, 1.35, 0] }, { theta: .67, phi: 1.24, radius: 7.1, target: [-1.12, 1.55, .2] }, { theta: .02, phi: 1.45, radius: 6.9, target: [.9, 1.9, 0] }];
   let viewIndex = 0, orbit = { ...views[0], target: [...views[0].target] }, targetOrbit = { ...orbit }, lastWidth = 0, lastHeight = 0;
@@ -209,7 +198,9 @@ export function createLab(canvas, feedCanvas) {
     wings.forEach((w, i) => { w.rotation.x = (i ? 1 : -1) * (Math.sin(phase) * (.025 + motor * .78) + motor * .1); });
     legs.forEach((l, i) => { l.rotation.x = Math.sin(phase * .3 + i * 1.5) * (.013 + motor * .075); });
     electrode.material.emissiveIntensity = 1.4 + Math.sin(move * 6) * .4 + excitement * 3;
-    dust.rotation.y = move * .005;
+    dust.rotation.y = move * .012;
+    dust.position.y = Math.sin(move * .25) * .13;
+    garden.animate(move);
     const smooth = 1 - Math.exp(-dt * 5);
     for (const k of ['theta', 'phi', 'radius']) orbit[k] += (targetOrbit[k] - orbit[k]) * smooth;
     orbit.target = orbit.target.map((v, i) => v + (targetOrbit.target[i] - v) * smooth);
@@ -217,7 +208,7 @@ export function createLab(canvas, feedCanvas) {
     camera.position.set(orbit.target[0] + radius * Math.sin(orbit.phi) * Math.sin(orbit.theta), orbit.target[1] + radius * Math.cos(orbit.phi), orbit.target[2] + radius * Math.sin(orbit.phi) * Math.cos(orbit.theta));
     camera.lookAt(...orbit.target);
     feedTexture.needsUpdate = true;
-    feedLight.intensity = 18 + Math.sin(time * 1.8) * 3 + excitement * 22;
+    feedLight.intensity = 4 + Math.sin(time * 1.8) * .6 + excitement * 6;
     feedLight.color.set(0xb5d9df);
     renderer.setRenderTarget(null); renderer.render(scene, camera);
   }
