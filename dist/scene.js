@@ -165,7 +165,8 @@ export function createLab(canvas, feedCanvas) {
     shape.quadraticCurveTo(-x, -y, -x + r, -y);
     return shape;
   }
-  const terminal = new THREE.Group(); terminal.position.set(1.78, 0, -.4); terminal.rotation.set(.08, -.68, 0); group.add(terminal);
+  // Bring the phone closer along the fly's forward axis and turn its glass toward the head.
+  const terminal = new THREE.Group(); terminal.position.set(1.45, 0, -.34); terminal.rotation.set(.08, -.9, 0); group.add(terminal);
   const phoneEdge = material(0x677279, { roughness: .26, metalness: .9 });
   mesh(new THREE.ExtrudeGeometry(phoneOutline(1.8, 3.3, .2), { depth: .1, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: .018, bevelThickness: .018, curveSegments: 12 }), phoneEdge, [0, 0, -.05], terminal);
   mesh(new THREE.ShapeGeometry(phoneOutline(1.77, 3.27, .19), 12), material(0x030508, { roughness: .16, metalness: .35 }), [0, 0, .07], terminal);
