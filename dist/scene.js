@@ -171,15 +171,6 @@ export function createLab(canvas, feedCanvas) {
   box([.023, .3, .058], [.919, .61, 0], phoneEdge, terminal);
   for (const y of [.72, .31]) box([.023, .24, .058], [-.919, y, 0], phoneEdge, terminal);
 
-  // Signal box, cables, and a conspicuously untouched piece of fruit.
-  const boxGroup = new THREE.Group(); boxGroup.position.set(3.15, .8, 1.65); boxGroup.rotation.y = -.16; group.add(boxGroup);
-  box([1.19, .7, .75], [0, 0, 0], dark, boxGroup);
-  label('NEUROLINK\n166,700 CELLS', .83, .33, [-.06, .05, .386], boxGroup, '#8db798', '#101d20', 34);
-  for (let i = 0; i < 5; i++) orb([.022, .022, .015], [-.36 + i * .17, -.24, .392], i % 2 ? cyan : lime, boxGroup, 1);
-  // Route the supply around the back of the desk and up the boom; no loose side leads enter the fly.
-  wire([[3.1, .62, 1.33], [3.55, .49, .8], [3.3, .49, -1.65], [-1.9, .49, -1.65], [-2.65, .63, -1.1], [-2.65, 3.38, -1.03], [-2.55, 3.51, -1.03], [-.74, 3.51, -1.03], [-.738, 3.51, .2]], .031, dark);
-  const fruit = orb([.16, .18, .15], [-3.59, .6, 1.73], material(0x73832d, { flatShading: true }), group, 1); rod([-3.59, .76, 1.73], [-3.55, .84, 1.72], .014, dark);
-
   const feedTexture = new THREE.CanvasTexture(feedCanvas);
   feedTexture.colorSpace = THREE.SRGBColorSpace;
   const screenMaterial = new THREE.MeshBasicMaterial({ map: feedTexture, toneMapped: false });
