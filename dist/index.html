@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#090b0d" />
+  <meta name="description" content="One fly. An infinite feed. A deeply unserious experiment in attention. Watch an animated 3D fly become terminally online." />
+  <meta property="og:title" content="FLY / WIREHEAD" />
+  <meta property="og:description" content="One fly. An infinite feed. A deeply unserious experiment in attention." />
+  <title>FLY / WIREHEAD — The attention experiment</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="./" aria-label="Fly Wirehead home"><span class="brand-mark">⌘</span> FLY<span class="slash">/</span>WIREHEAD<span class="version">v0.1</span></a>
+    <span class="header-note">AN EXPERIMENT IN ATTENTION</span>
+    <button class="text-button" id="about-open">What is this? <span>↗</span></button>
+  </header>
+
+  <main>
+    <div class="intro">
+      <div><div class="eyebrow">SPECIMEN 001 · DROSOPHILA MELANOGASTER</div><h1>Born to fly. <span>Forced to scroll.</span></h1><p>One fly. An infinite feed. Absolutely no free will.</p></div>
+      <div class="experiment-state"><span class="live-dot"></span><span id="top-state">EXPERIMENT RUNNING</span><span class="session-time" id="session-time">00:00:00</span></div>
+    </div>
+
+    <div class="workspace">
+      <section class="observation" aria-label="Interactive 3D fly observation chamber">
+        <div class="panel-bar"><span><span class="crosshair">⌖</span> OBSERVATION CHAMBER</span><span class="bar-meta">CAM 01 <span class="muted">/</span> LIVE</span></div>
+        <div class="scene-wrap" id="scene-wrap">
+          <canvas id="scene" aria-label="A 3D fly wired to a screen playing an endless shortform feed"></canvas>
+          <div class="scene-error" id="scene-error" hidden>Your browser couldn’t start the 3D scene. Try a browser with WebGL enabled.</div>
+          <div class="scene-coordinate"><span class="live-dot"></span> SUBJECT ONLINE <small>NEURAL LINK ESTABLISHED</small></div>
+          <div class="scene-view">PERSPECTIVE <span>01 / 03</span></div>
+          <div class="specimen-tag"><span>F-001</span><small id="fly-thought">“just one more”</small></div>
+          <div class="feed-tag"><span class="lime">↳</span> <span id="clip-label">ODDLY SATISFYING</span><span id="clip-time">00:00 / 00:12</span></div>
+          <div class="scene-message" id="scene-message" role="status"></div>
+          <div class="scene-bottom"><span class="scene-help">DRAG TO ORBIT <i>·</i> SCROLL / ↓ NEXT SHORT</span><div class="scene-tools"><button id="camera-button" aria-label="Change camera view" title="Change camera view">⌖</button><button id="fullscreen-button" aria-label="Toggle fullscreen" title="Fullscreen">⛶</button></div></div>
+        </div>
+        <div class="transport">
+          <div class="playback-controls"><button id="pause-button" class="icon-button" aria-label="Pause experiment" title="Pause (Space)">Ⅱ</button><button id="sound-button" class="icon-button" aria-label="Turn sound on" title="Toggle sound">♩<span class="sound-slash">/</span></button><span class="control-separator"></span><div class="feed-indicator"><span class="live-dot"></span><span>INFINITE FEED<small><span id="short-number">01</span> SHORTS CONSUMED</small></span></div></div>
+          <button class="next-button" id="next-button">Next short <span>↓</span></button>
+        </div>
+      </section>
+
+      <aside class="telemetry" aria-label="Simulated neural telemetry">
+        <div class="panel-bar"><span>NEURAL TELEMETRY</span><span class="live-dot"></span></div>
+        <div class="dopamine-block"><div class="metric-label">DOPAMINE LEVEL <span>↗</span></div><div class="dopamine-value"><span id="dopamine-value">78.4</span><small>%</small><span class="metric-change" id="dopamine-change">+12.8%</span></div><div class="meter"><div id="dopamine-meter"></div></div><div class="scale-labels"><span>BASELINE</span><span>WIREHEADED</span></div><canvas id="dopamine-chart" aria-label="Simulated dopamine level over time"></canvas><div class="chart-labels"><span>−60s</span><span>NOW</span></div></div>
+        <div class="readouts"><div><span>Neural activity</span><strong id="neural-value">783.8 <small>K/s</small></strong></div><div><span>Attention span</span><strong id="attention-value">1.2 <small>sec</small></strong></div><div><span>Brainrot index</span><strong class="lime" id="brainrot-value">SEVERE <small>↗</small></strong></div></div>
+        <div class="raster-block"><div class="metric-label">SPIKE RASTER <span>96 NEURONS</span></div><canvas id="spike-raster" aria-label="Animated simulated neural firing raster"></canvas><div class="raster-caption"><span class="live-dot"></span> THE NEURONS ARE NEURONING</div></div>
+        <div class="stimulus-block"><div class="metric-label">REWARD PATHWAY <span>MANUAL OVERRIDE</span></div><button class="dopamine-button" id="stimulate-button"><span>ϟ</span> Inject dopamine <span>↗</span></button><p>For when the algorithm isn’t enough.</p></div>
+      </aside>
+    </div>
+
+    <section class="session-strip" aria-label="Experiment statistics"><div><span>EXPOSURE TIME</span><strong id="exposure">0m 00s</strong></div><div><span>SHORTS CONSUMED</span><strong id="consumed">01 <small>and counting</small></strong></div><div><span>VOLUNTARY THOUGHTS</span><strong>0 <small>as expected</small></strong></div><div class="subject-status"><span>SUBJECT STATUS</span><strong><span class="live-dot"></span><span id="subject-status">Terminally online</span></strong></div></section>
+    <footer><span>A deeply unserious experiment. <span class="footer-muted">Simulated fly. Synthetic shorts. Real brainrot.</span></span><a href="https://github.com/nftechie/stonkfly" target="_blank" rel="noreferrer">Inspired by stonkfly ↗</a></footer>
+  </main>
+  <dialog id="about-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close about">×</button></form><div class="eyebrow">THE ATTENTION EXPERIMENT</div><h2>He used to like fruit.</h2><p>We gave a fly an infinite shortform feed and connected its reward pathway to the algorithm. This is what happened.</p><p>Drag to look around the chamber. Swipe, scroll, or press <kbd>↓</kbd> to change the short. Press <kbd>Space</kbd> to pause. Inject dopamine to make a questionable situation worse.</p><div class="about-note">This is a fictional browser toy. The fly, neural activity, and reward signals are simulated. The shorts are original animated loops. No biological simulation or real animals involved.</div><a href="https://github.com/nftechie/stonkfly" target="_blank" rel="noreferrer">Inspired by nftechie’s stonkfly ↗</a></dialog>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
