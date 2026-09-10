@@ -61,21 +61,22 @@ export function createLab(canvas, feedCanvas) {
   rod([-.738, 3.32, .2], [ -.738, 3.285, .2], .081, lime);
   // Original low-poly Drosophila, facing its terminal.
   const fly = new THREE.Group(); fly.position.set(-1.35, 1.43, .35); fly.rotation.y = .24; group.add(fly);
-  const shell = material(0x80bfc1, { flatShading: true, metalness: .2, roughness: .48 });
-  const abdomen = orb([.91, .39, .43], [-.83, -.02, 0], material(0x3e6867, { flatShading: true, metalness: .12 }), fly);
-  for (let i = 0; i < 5; i++) { const ring = mesh(new THREE.TorusGeometry(.36 - i * .035, .035, 4, 14), material(0x719995), [-.65 - i * .17, -.01, 0], fly); ring.rotation.y = Math.PI / 2; ring.scale.z = .94; }
+  const shell = material(0x587b7d, { flatShading: true, metalness: .33, roughness: .53 });
+  const flyMetal = material(0x2b4149, { metalness: .75, roughness: .34 }), flyDark = material(0x141f25);
+  const abdomen = orb([.91, .39, .43], [-.83, -.02, 0], material(0x152c31, { flatShading: true }), fly);
+  for (let i = 0; i < 5; i++) { const ring = mesh(new THREE.TorusGeometry(.36 - i * .035, .035, 4, 14), material(0x2b4548), [-.65 - i * .17, -.01, 0], fly); ring.rotation.y = Math.PI / 2; ring.scale.z = .94; }
   const thorax = orb([.66, .53, .5], [-.05, .08, 0], shell, fly);
   const head = new THREE.Group(); head.position.set(.63, .19, 0); fly.add(head);
-  orb([.41, .4, .4], [0, 0, 0], material(0xa2cecc, { flatShading: true, metalness: .18 }), head);
-  const eyeMaterial = material(0xc92748, { flatShading: true, roughness: .34, metalness: .15, emissive: 0x400916, emissiveIntensity: .15 });
+  orb([.41, .4, .4], [0, 0, 0], material(0x71888b, { flatShading: true }), head);
+  const eyeMaterial = material(0x9e1837, { flatShading: true, roughness: .29, metalness: .45, emissive: 0x3c0614, emissiveIntensity: .4 });
   const eyes = [];
   for (const side of [-1, 1]) {
     const eye = orb([.28, .37, .255], [.12, .04, .29 * side], eyeMaterial, head, 2); eyes.push(eye);
     orb([.065, .045, .045], [.21, .25, .47 * side], material(0xe7a8a0, { roughness: .1, emissive: 0x995069 }), head, 1);
-    wire([[.25, .3, side * .15], [.48, .49, side * .21], [.7, .57, side * .37]], .012, metal, head);
-    orb([.038, .027, .027], [.7, .57, side * .37], dark, head, 1);
+    wire([[.25, .3, side * .15], [.48, .49, side * .21], [.7, .57, side * .37]], .012, flyMetal, head);
+    orb([.038, .027, .027], [.7, .57, side * .37], flyDark, head, 1);
   }
-  rod([.28, -.17, 0], [.51, -.35, 0], .045, metal, head); orb([.06, .08, .11], [.51, -.35, 0], dark, head, 1);
+  rod([.28, -.17, 0], [.51, -.35, 0], .045, flyMetal, head); orb([.06, .08, .11], [.51, -.35, 0], flyDark, head, 1);
   // Fine thorax bristles catch the monitor light.
   for (let i = 0; i < 72; i++) { const a = seed(i + 4) * Math.PI * 2, b = seed(i + 51) * Math.PI; const p = [Math.cos(a) * Math.sin(b) * .64 - .05, Math.abs(Math.cos(b)) * .51 + .1, Math.sin(a) * Math.sin(b) * .49]; if (p[0] > .3) continue; rod(p, [p[0] + (p[0] + .05) * .19, p[1] + .08 + seed(i) * .08, p[2] * 1.14], .006, material(0x19292c), fly, 3); }
   const legs = [];
@@ -83,8 +84,8 @@ export function createLab(canvas, feedCanvas) {
   for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
     const leg = new THREE.Group(); fly.add(leg); const x = .33 - i * .46;
     const a = [x, -.17, side * .3], b = [x + (.52 - i * .48), -.37, side * .75], c = [x + (.59 - i * .35), -.94, side * .99], d = [c[0] + .24, -.96, c[2] + side * .08];
-    const upper = rod(a, b, .034, metal, leg), joint = orb([.055, .055, .055], b, shell, leg, 1);
-    const lower = rod(b, c, .022, metal, leg), foot = rod(c, d, .012, dark, leg); legs.push(leg);
+    const upper = rod(a, b, .034, flyMetal, leg), joint = orb([.055, .055, .055], b, shell, leg, 1);
+    const lower = rod(b, c, .022, flyMetal, leg), foot = rod(c, d, .012, flyDark, leg); legs.push(leg);
     // Forward is +X, so anatomical right is +Z: the visible front leg.
     if (side === 1 && i === 0) rightForeleg = { group: leg, upper, joint, lower, foot };
   }
@@ -102,8 +103,8 @@ export function createLab(canvas, feedCanvas) {
     const points = [[0, 0, 0], [-.75, .07, .38 * side], [-1.72, .01, 1.1 * side], [-2.03, -.035, 1.05 * side], [-2.21, -.04, .83 * side], [-1.77, -.03, .41 * side], [-.66, -.015, .03 * side]];
     const vertices = []; for (let i = 1; i < points.length - 1; i++) vertices.push(...points[0], ...points[i], ...points[i + 1]);
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geo.computeVertexNormals();
-    const m = mesh(geo, material(0xdcf4e8, { transparent: true, opacity: .58, side: THREE.DoubleSide, roughness: .3, metalness: .15, flatShading: true }), [0, 0, 0], wing); m.castShadow = false;
-    const vein = material(0x82a9a0, { transparent: true, opacity: .78, metalness: .15 });
+    const m = mesh(geo, material(0xa9dce2, { transparent: true, opacity: .48, side: THREE.DoubleSide, roughness: .2, metalness: .5, flatShading: true }), [0, 0, 0], wing); m.castShadow = false;
+    const vein = material(0x77999b, { transparent: true, opacity: .68, metalness: .5 });
     const line = [...points, points[0]]; for (let j = 0; j < line.length - 1; j++) rod(line[j], line[j + 1], .009, vein, wing, 4);
     for (let j = 2; j < 6; j++) rod([-.1, 0, .025 * side], points[j], .006, vein, wing, 3);
     rod([-.83, .01, .31 * side], [-1.23, .025, .7 * side], .007, vein, wing, 3);
