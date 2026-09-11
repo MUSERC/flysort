@@ -1,0 +1,26 @@
+{
+  "neurons_total": 166700,
+  "neurons_drawn": 139662,
+  "neurons_without_soma": 27038,
+  "connections_total": 25582938,
+  "connections_drawn": 247710,
+  "plastic_drawn": 7804,
+  "families": [
+    "ENS",
+    "ascending",
+    "cb",
+    "descending",
+    "efferent",
+    "ol",
+    "visual",
+    "vnc"
+  ],
+  "centre": [
+    48468.15234375,
+    32369.48828125,
+    38845.390625
+  ],
+  "scale": 95685.609375,
+  "source": "MaleCNS v1.0 somaLocation; positions are published anatomy, not a layout",
+  "caveat": "27,038 retained neurons have no published soma location and are not drawn. 25,335,228 connections are not drawn; the sample is seeded and includes every plastic synapse."
+}

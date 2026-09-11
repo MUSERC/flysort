@@ -10,6 +10,7 @@ from .neural.visual import VisualMemoryBrain
 
 FRAME_WIDTH, FRAME_HEIGHT = 90, 160
 PAM11_CURRENT_MV = 20.0
+PPL101_CURRENT_MV = 20.0
 
 
 def decode_frame(body: bytes) -> np.ndarray:
@@ -37,24 +38,49 @@ class FlyEngine:
         self.sample = np.asarray(chosen[:96], dtype=np.int32)
         self.sample_cells = [{"id": str(b.ids[i]), "type": str(self.types.iloc[i])} for i in self.sample]
         self.pending_pulse_ms = 0.0
+        # Split the plastic edges by the compartment they terminate in. MBON07
+        # and MBON11 fire too rarely to rank anything from their spikes, so the
+        # readout below sums the KC drive arriving on each compartment instead.
+        # That total is exactly what the plasticity rule rescales, so it tracks
+        # what the fly has learned without depending on six sparse cells.
+        self.mbon07, self.mbon11 = b.circuit["mb"][:4], b.circuit["mb"][4:]
+        targets = b.post[b.circuit["edges"]]
+        self.reward_edges = np.flatnonzero(np.isin(targets, self.mbon07))
+        self.aversive_edges = np.flatnonzero(np.isin(targets, self.mbon11))
+        if not len(self.reward_edges) or not len(self.aversive_edges):
+            raise ValueError("Both memory compartments need reconstructed KC inputs")
+
+    def compartment_drive(self, counts):
+        """KC synaptic drive delivered into the reward and aversive compartments."""
+        b = self.brain
+        weighted = counts[b.circuit["pre"]] * b.weight[b.circuit["edges"]]
+        return float(weighted[self.reward_edges].sum()), float(weighted[self.aversive_edges].sum())
 
     def stimulate(self):
         # Repeated button presses replace the pending pulse, never accumulate it.
         self.pending_pulse_ms = 200.0
 
-    def observe(self, frame, duration_ms=50.0, *, video_reward=False):
+    def observe_game(self, frame, duration_ms=50.0, *, reward=False, punish=False, odor=None):
+        """Explicit outcome delivery for the sorting game.
+
+        The video drive is never consulted here, so a training run cannot be
+        accidentally rewarded for merely looking at something.
+        """
+        return self.observe(frame, duration_ms, video_reward=reward, punish=punish, odor=odor)
+
+    def observe(self, frame, duration_ms=50.0, *, video_reward=False, punish=False, odor=None):
         if not isinstance(frame, np.ndarray) or frame.dtype != np.uint8 or frame.ndim != 3 or frame.shape[2] != 3 or min(frame.shape[:2]) < 1:
             raise ValueError("A nonempty RGB uint8 frame is required")
         if not np.isfinite(duration_ms) or not .1 <= duration_ms <= 500 or abs(duration_ms * 10 - round(duration_ms * 10)) > 1e-7:
             raise ValueError("Duration must be 0.1–500 ms in 0.1 ms increments")
-        if not isinstance(video_reward, bool):
-            raise ValueError("Video reward must be a boolean")
+        if not isinstance(video_reward, bool) or not isinstance(punish, bool):
+            raise ValueError("Video reward and punishment must be booleans")
         b = self.brain
         started = time.perf_counter()
         counts = np.zeros(b.n, np.int64)
         bins = []
         ticks = round(duration_ms / b.dt)
-        delivered = manual_delivered = 0.0
+        delivered = manual_delivered = aversive_delivered = 0.0
         while ticks:
             n = min(100, ticks)
             if self.pending_pulse_ms > 0:
@@ -63,12 +89,21 @@ class FlyEngine:
             manual = self.pending_pulse_ms > 0
             # Watching supplies a bounded current to the actual annotated cells.
             # A manual pulse overlaps that drive; it never doubles the amplitude.
-            stimulus = (b.circuit["reward"], PAM11_CURRENT_MV) if video_reward or manual else None
-            spikes, _ = b.rgb_step(frame, interval, learning=not b.weights_frozen, stimulation=stimulus)
+            rewarding = video_reward or manual
+            pulses = []
+            if rewarding:
+                pulses.append((b.circuit["reward"], PAM11_CURRENT_MV))
+            if punish:
+                pulses.append((b.circuit["aversive"], PPL101_CURRENT_MV))
+            if odor is not None:
+                pulses.append(odor)
+            spikes, _ = b.rgb_step(frame, interval, learning=not b.weights_frozen, stimulation=pulses or None)
             counts += spikes
             bins.append({"end_ms": round(b.sim_ms, 3), "duration_ms": interval, "counts": spikes[self.sample].tolist()})
-            if stimulus is not None:
+            if rewarding:
                 delivered += interval
+            if punish:
+                aversive_delivered += interval
             if manual:
                 manual_delivered += interval
                 self.pending_pulse_ms = max(0.0, round(self.pending_pulse_ms - interval, 6))
@@ -79,6 +114,7 @@ class FlyEngine:
         def mean_rate(indices):
             return float(counts[indices].sum() / (max(1, len(indices)) * seconds))
 
+        reward_drive, aversive_drive = self.compartment_drive(counts)
         return {
             "sim_ms": round(b.sim_ms, 3),
             "interval_ms": duration_ms,
@@ -89,13 +125,22 @@ class FlyEngine:
             "pam11_hz": mean_rate(b.circuit["reward"]),
             "pam11_spikes": int(counts[b.circuit["reward"]].sum()),
             "ppl101_hz": mean_rate(b.circuit["aversive"]),
+            "mbon07_hz": mean_rate(self.mbon07),
+            "mbon11_hz": mean_rate(self.mbon11),
+            "reward_drive": reward_drive,
+            "aversive_drive": aversive_drive,
+            "valence": reward_drive - aversive_drive,
             "kc_hz": mean_rate(b.circuit["kc"]),
+            "kc_active": int(np.count_nonzero(counts[b.circuit["kc"]])),
             "kc_spikes": int(counts[b.circuit["kc"]].sum()),
             "motor_hz": mean_rate(self.motor),
             "turn_hz": mean_rate(self.right) - mean_rate(self.left),
             "mean_voltage_mv": float(b.v.mean()),
             "stimulus_ms": round(delivered, 3),
             "stimulus_current_mv": PAM11_CURRENT_MV if delivered else 0.0,
+            "aversive_stimulus_ms": round(aversive_delivered, 3),
+            "aversive_current_mv": PPL101_CURRENT_MV if aversive_delivered else 0.0,
+            "odor_cells": int(np.count_nonzero(odor[1])) if odor is not None else 0,
             "video_stimulus_ms": round(duration_ms, 3) if video_reward else 0.0,
             "manual_stimulus_ms": round(manual_delivered, 3),
             "pending_stimulus_ms": self.pending_pulse_ms,
